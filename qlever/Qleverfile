@@ -1,0 +1,27 @@
+# Qleverfile for mbox-rdf
+# Use with qlever: https://github.com/ad-freiburg/qlever-control
+
+[data]
+NAME             = mbox
+DESCRIPTION      = Thunderbird mbox archive converted to RDF N-Quads
+VERSION          = $$(date +"%d.%m.%Y")
+TEXT_DESCRIPTION = All literals, search with [ ql:contains-word "..."; ql:contains-entity ?literal ]
+FORMAT           = nq
+
+[index]
+INPUT_FILES     = *.nq.gz
+# On macOS, gzcat is standard for gzipped files. qlever index calls this.
+CAT_INPUT_FILES = gzcat ${INPUT_FILES}
+SETTINGS_JSON   = { "num-triples-per-batch": 1000000 }
+TEXT_INDEX      = from_literals
+
+[server]
+PORT               = 7029
+ACCESS_TOKEN       = mbox_access_token
+MEMORY_FOR_QUERIES = 5G
+
+[runtime]
+SYSTEM = native
+
+[ui]
+UI_CONFIG = default

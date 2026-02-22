@@ -60,6 +60,19 @@ Check `QUERIES.sparqlbook` for advanced query examples. You can run these using 
 - Hourly activity peaks.
 - Cross-folder duplicate detection.
 
+## Indexing and Querying with QLever
+
+For large archives, we recommend using [QLever](https://github.com/ad-freiburg/qlever). It provides a high-performance SPARQL engine that can handle millions of triples with ease.
+
+Detailed instructions and a pre-configured `Qleverfile` can be found in the [qlever/](qlever/) directory.
+
+### Quick Start with QLever
+```bash
+cd qlever
+qlever index  # Indexes the generated .nq.gz files
+qlever start  # Starts the SPARQL endpoint
+```
+
 ## Performance
 
 ## License
