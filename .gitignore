@@ -7,5 +7,14 @@
 *.nq
 *.gz
 .DS_Store
+
+# QLever index files
+*.index.*
+*.vocabulary.*
+*.text.*
+*.prefixes
+*.words
+*.docs
+qlever/mbox.*
 Cargo.lock
 convert_all.sh
