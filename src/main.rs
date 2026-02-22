@@ -1,0 +1,408 @@
+mod vocab;
+mod schema;
+
+use anyhow::{Context, Result};
+use clap::Parser;
+use mbox_reader::MboxFile;
+use mail_parser::{MessageParser, Address, Addr, MimeHeaders, HeaderName, HeaderValue, GetHeader};
+use std::fs::File;
+use std::io::{BufWriter, Write};
+use std::path::Path;
+use flate2::write::GzEncoder;
+use flate2::Compression;
+use sha2::{Sha256, Digest};
+use vocab::{Vocab, DEFAULT_DATA_IRI, DEFAULT_SCHEMA_IRI};
+use regex::Regex;
+use std::sync::OnceLock;
+
+#[derive(Parser, Debug)]
+#[command(author, version, about, long_about = None)]
+struct Args {
+    /// Input mbox file(s)
+    #[arg(required = true)]
+    inputs: Vec<String>,
+
+    /// Output path for RDF data (.nt or .nq, optionally .gz)
+    #[arg(short, long, default_value = "mail.nt")]
+    output: String,
+
+    /// Base IRI for instance data
+    #[arg(long, default_value = DEFAULT_DATA_IRI)]
+    data_iri: String,
+
+    /// Base IRI for the schema/ontology
+    #[arg(long, default_value = DEFAULT_SCHEMA_IRI)]
+    schema_iri: String,
+
+    /// Optional Graph IRI (enables N-Quads)
+    #[arg(long)]
+    graph_iri: Option<String>,
+
+    /// Force Gzip compression (enabled automatically if output ends in .gz)
+    #[arg(long)]
+    gzip: bool,
+
+    /// Include body text
+    #[arg(long, default_value_t = false)]
+    include_body: bool,
+
+    /// Folder name override (default: derived from filename)
+    #[arg(long)]
+    folder_name: Option<String>,
+
+    /// Generate schema file
+    #[arg(long, default_value = "mail-schema.ttl")]
+    schema_path: String,
+
+    /// Limit number of messages to process
+    #[arg(long)]
+    limit: Option<usize>,
+}
+
+fn main() -> Result<()> {
+    let args = Args::parse();
+    let vocab = Vocab::new(args.schema_iri, args.data_iri);
+
+    // Generate schema
+    schema::generate_schema(&vocab, &args.schema_path)
+        .with_context(|| format!("Failed to generate schema at {}", args.schema_path))?;
+    println!("Schema generated at {}", args.schema_path);
+
+    let out_file = File::create(&args.output)
+        .with_context(|| format!("Failed to create output file {}", args.output))?;
+    
+    let is_gzip = args.gzip || args.output.ends_with(".gz");
+    
+    let writer: Box<dyn Write> = if is_gzip {
+        println!("Encryption enabled (gzip)");
+        Box::new(GzEncoder::new(out_file, Compression::default()))
+    } else {
+        Box::new(out_file)
+    };
+    
+    let mut writer = BufWriter::new(writer);
+
+    let mut total_processed = 0;
+    let mut total_failed = 0;
+
+    for input_path in &args.inputs {
+        let path = Path::new(input_path);
+        let folder_name = args.folder_name.clone().unwrap_or_else(|| {
+            path.file_name()
+                .and_then(|s| s.to_str())
+                .unwrap_or("unknown")
+                .to_string()
+        });
+        let folder_iri_str = vocab.folder_iri(&folder_name);
+        
+        let absolute_input_path = path.canonicalize()
+            .map(|p| p.to_string_lossy().into_owned())
+            .unwrap_or_else(|_| input_path.clone());
+
+        println!("Processing folder: {} ({})", folder_name, input_path);
+
+        let mbox = MboxFile::from_file(Path::new(input_path))
+            .with_context(|| format!("Failed to open mbox file {}", input_path))?;
+
+        for entry in mbox.iter() {
+            if let Some(limit) = args.limit {
+                if total_processed >= limit {
+                    break;
+                }
+            }
+
+            if let Some(raw_message) = entry.message() {
+                match process_message(&vocab, raw_message, &folder_iri_str, &absolute_input_path, args.include_body, args.graph_iri.as_deref(), &mut writer) {
+                    Ok(_) => {
+                        total_processed += 1;
+                        if total_processed % 100 == 0 {
+                            println!("Processed {} messages...", total_processed);
+                        }
+                    }
+                    Err(e) => {
+                        eprintln!("Error processing message {} in {}: {}", total_processed + total_failed, input_path, e);
+                        total_failed += 1;
+                    }
+                }
+            }
+        }
+    }
+
+    writer.flush()?;
+    println!("Done! Total processed: {}, Total failed: {}", total_processed, total_failed);
+
+    Ok(())
+}
+
+fn process_message<W: Write>(
+    vocab: &Vocab,
+    raw_message: &[u8],
+    folder_iri_str: &str,
+    source_path: &str,
+    include_body: bool,
+    graph_iri: Option<&str>,
+    writer: &mut W,
+) -> Result<()> {
+    let msg = MessageParser::default().parse(raw_message)
+        .context("Failed to parse email message")?;
+
+    let msg_id = msg.message_id();
+    let msg_iri_str = vocab.message_iri(msg_id, raw_message);
+    
+    let mut triples = Vec::new();
+    let s = msg_iri_str.clone();
+
+    // Type: Message
+    add_iri_triple(&mut triples, &s, vocab::RDF_TYPE, &vocab.term("Message"), graph_iri);
+
+    // Folder
+    add_iri_triple(&mut triples, &s, &vocab.term("folder"), folder_iri_str, graph_iri);
+
+    // Source Path
+    add_literal_triple(&mut triples, &s, &vocab.term("sourcePath"), source_path, graph_iri);
+
+    // Subject
+    if let Some(subject) = msg.subject() {
+        add_literal_triple(&mut triples, &s, &vocab.term("subject"), subject, graph_iri);
+        add_literal_triple(&mut triples, &s, &vocab.term("normalizedSubject"), &normalize_subject(subject), graph_iri);
+    }
+
+    // Message-ID
+    if let Some(id) = msg_id {
+        add_literal_triple(&mut triples, &s, &vocab.term("messageId"), id, graph_iri);
+        add_iri_triple(&mut triples, &s, &vocab.term("mid"), &vocab.mid_iri(id), graph_iri);
+    }
+
+    // In-Reply-To
+    match msg.in_reply_to() {
+        HeaderValue::Text(parent_id) => {
+            let parent_iri = vocab.message_iri(Some(parent_id.as_ref()), &[]);
+            add_iri_triple(&mut triples, &s, &vocab.term("inReplyTo"), &parent_iri, graph_iri);
+        }
+        HeaderValue::TextList(ids) => {
+            for id in ids {
+                let parent_iri = vocab.message_iri(Some(id.as_ref()), &[]);
+                add_iri_triple(&mut triples, &s, &vocab.term("inReplyTo"), &parent_iri, graph_iri);
+            }
+        }
+        _ => {}
+    }
+
+    // References
+    match msg.references() {
+        HeaderValue::Text(id) => {
+            let ref_iri = vocab.message_iri(Some(id.as_ref()), &[]);
+            add_iri_triple(&mut triples, &s, &vocab.term("references"), &ref_iri, graph_iri);
+        }
+        HeaderValue::TextList(ids) => {
+            for id in ids {
+                let ref_iri = vocab.message_iri(Some(id.as_ref()), &[]);
+                add_iri_triple(&mut triples, &s, &vocab.term("references"), &ref_iri, graph_iri);
+            }
+        }
+        _ => {}
+    }
+
+    // Mailing List Awareness
+    if let HeaderValue::Text(list_id) = msg.list_id() {
+        let list_iri = vocab.list_iri(list_id.as_ref());
+        add_iri_triple(&mut triples, &s, &vocab.term("belongsToList"), &list_iri, graph_iri);
+        add_iri_triple(&mut triples, &list_iri, vocab::RDF_TYPE, &vocab.term("MailingList"), graph_iri);
+        add_literal_triple(&mut triples, &list_iri, &vocab.term("listId"), list_id.as_ref(), graph_iri);
+        
+        if let HeaderValue::Text(archive) = msg.list_archive() {
+            add_literal_triple(&mut triples, &list_iri, &vocab.term("listArchive"), archive.as_ref(), graph_iri);
+        }
+    }
+
+    // Date
+    if let Some(date) = msg.date() {
+        let tz = if date.tz_hour == 0 && date.tz_minute == 0 {
+            "Z".to_string()
+        } else {
+            let sign = if date.tz_before_gmt { "-" } else { "+" };
+            format!("{}{:02}:{:02}", sign, date.tz_hour, date.tz_minute)
+        };
+        let date_str = format!("{:04}-{:02}-{:02}T{:02}:{:02}:{:02}{}", 
+            date.year, date.month, date.day, date.hour, date.minute, date.second, tz);
+        add_typed_literal_triple(&mut triples, &s, &vocab.term("date"), &date_str, vocab::XSD_DATETIME, graph_iri);
+    }
+
+    // User-Agent / X-Mailer
+    if let Some(HeaderValue::Text(ua)) = msg.header_values("User-Agent").next() {
+        add_literal_triple(&mut triples, &s, &vocab.term("userAgent"), ua.as_ref(), graph_iri);
+    } else if let Some(HeaderValue::Text(ua)) = msg.header_values("X-Mailer").next() {
+        add_literal_triple(&mut triples, &s, &vocab.term("userAgent"), ua.as_ref(), graph_iri);
+    }
+
+    // Addresses
+    process_addresses(&mut triples, &s, &vocab.term("from"), msg.from(), vocab, graph_iri);
+    process_addresses(&mut triples, &s, &vocab.term("to"), msg.to(), vocab, graph_iri);
+    process_addresses(&mut triples, &s, &vocab.term("cc"), msg.cc(), vocab, graph_iri);
+    process_addresses(&mut triples, &s, &vocab.term("bcc"), msg.bcc(), vocab, graph_iri);
+
+    // Body & Link Extraction
+    if let Some(body) = msg.body_text(0) {
+        if include_body {
+            add_literal_triple(&mut triples, &s, &vocab.term("bodyText"), &body, graph_iri);
+        }
+        
+        /*
+        // Extract links
+        static URL_RE: OnceLock<Regex> = OnceLock::new();
+        let url_re = URL_RE.get_or_init(|| Regex::new(r#"(?i)https?://[^\s<>"'()\[\]]+"#).unwrap());
+        for mat in url_re.find_iter(&body) {
+            let mut url = mat.as_str();
+            // Basic trailing punctuation cleanup
+            while url.ends_with('.') || url.ends_with(',') || url.ends_with(';') || url.ends_with(':') || url.ends_with(']') || url.ends_with(')') {
+                url = &url[..url.len() - 1];
+            }
+            
+            // Skip empty or trivial URLs
+            if url.len() <= 8 || !url.contains("://") {
+                continue;
+            }
+            let host_part = &url[url.find("://").unwrap() + 3..];
+            if host_part.is_empty() {
+                continue;
+            }
+
+            add_iri_triple(&mut triples, &s, &vocab.term("linksTo"), &sanitize_iri(url), graph_iri);
+        }
+        */
+    }
+
+    // Attachments
+    for att in msg.attachments() {
+        let mut hasher = Sha256::new();
+        let content = match &att.body {
+            mail_parser::PartType::Binary(b) => b.as_ref(),
+            mail_parser::PartType::InlineBinary(b) => b.as_ref(),
+            mail_parser::PartType::Text(t) => t.as_bytes(),
+            mail_parser::PartType::Html(h) => h.as_bytes(),
+            _ => &[],
+        };
+        hasher.update(content);
+        let hash = format!("{:x}", hasher.finalize());
+        
+        let att_iri = vocab.attachment_iri(&hash);
+        add_iri_triple(&mut triples, &s, &vocab.term("hasAttachment"), &att_iri, graph_iri);
+        add_iri_triple(&mut triples, &att_iri, vocab::RDF_TYPE, &vocab.term("Attachment"), graph_iri);
+        add_literal_triple(&mut triples, &att_iri, &vocab.term("hash"), &hash, graph_iri);
+        
+        if let Some(filename) = att.attachment_name() {
+             add_literal_triple(&mut triples, &att_iri, &vocab.term("filename"), filename, graph_iri);
+        }
+        
+        let ctype = att.content_type().map(|c| c.ctype()).unwrap_or("application/octet-stream");
+        add_literal_triple(&mut triples, &att_iri, &vocab.term("contentType"), ctype, graph_iri);
+    }
+
+    // Serialize all triples/quads for this message
+    for t in triples {
+        writeln!(writer, "{}", t)?;
+    }
+
+    Ok(())
+}
+
+fn add_iri_triple(triples: &mut Vec<String>, s: &str, p: &str, o: &str, graph_iri: Option<&str>) {
+    if let Some(g) = graph_iri {
+        triples.push(format!("<{}> <{}> <{}> <{}> .", s, p, o, g));
+    } else {
+        triples.push(format!("<{}> <{}> <{}> .", s, p, o));
+    }
+}
+
+fn add_literal_triple(triples: &mut Vec<String>, s: &str, p: &str, o: &str, graph_iri: Option<&str>) {
+    if let Some(g) = graph_iri {
+        triples.push(format!("<{}> <{}> \"{}\" <{}> .", s, p, escape_nt(o), g));
+    } else {
+        triples.push(format!("<{}> <{}> \"{}\" .", s, p, escape_nt(o)));
+    }
+}
+
+fn add_typed_literal_triple(triples: &mut Vec<String>, s: &str, p: &str, o: &str, t: &str, graph_iri: Option<&str>) {
+    if let Some(g) = graph_iri {
+        triples.push(format!("<{}> <{}> \"{}\"^^<{}> <{}> .", s, p, escape_nt(o), t, g));
+    } else {
+        triples.push(format!("<{}> <{}> \"{}\"^^<{}> .", s, p, escape_nt(o), t));
+    }
+}
+
+fn escape_nt(s: &str) -> String {
+    s.replace('\\', "\\\\")
+     .replace('\"', "\\\"")
+     .replace('\n', "\\n")
+     .replace('\r', "\\r")
+     .replace('\t', "\\t")
+}
+
+fn sanitize_iri(s: &str) -> String {
+    let mut result = String::with_capacity(s.len());
+    for c in s.chars() {
+        match c {
+            ' ' | '<' | '>' | '"' | '{' | '}' | '|' | '^' | '\\' | '`' | '@' | '[' | ']' => {
+                result.push_str(&format!("%{:02X}", c as u32));
+            }
+            _ if c.is_control() => {
+                result.push_str(&format!("%{:02X}", c as u32));
+            }
+            _ => result.push(c),
+        }
+    }
+    result
+}
+
+fn process_addresses(
+    triples: &mut Vec<String>,
+    msg_s: &str,
+    predicate: &str,
+    addr_value: Option<&Address>,
+    vocab: &Vocab,
+    graph_iri: Option<&str>,
+) {
+    if let Some(addr) = addr_value {
+        match addr {
+            Address::List(list) => {
+                for a in list {
+                    add_single_addr(triples, msg_s, predicate, a, vocab, graph_iri);
+                }
+            }
+            Address::Group(groups) => {
+                for g in groups {
+                    for a in &g.addresses {
+                        add_single_addr(triples, msg_s, predicate, a, vocab, graph_iri);
+                    }
+                }
+            }
+        }
+    }
+}
+
+fn add_single_addr(
+    triples: &mut Vec<String>,
+    msg_s: &str,
+    predicate: &str,
+    addr: &Addr,
+    vocab: &Vocab,
+    graph_iri: Option<&str>,
+) {
+    if let Some(email) = &addr.address {
+        let addr_iri = vocab.address_iri(email);
+        
+        add_iri_triple(triples, msg_s, predicate, &addr_iri, graph_iri);
+        add_iri_triple(triples, &addr_iri, vocab::RDF_TYPE, &vocab.term("Address"), graph_iri);
+        add_literal_triple(triples, &addr_iri, &vocab.term("addr"), email, graph_iri);
+        
+        if let Some(name) = &addr.name {
+            add_literal_triple(triples, &addr_iri, &vocab.term("name"), name, graph_iri);
+        }
+    }
+}
+
+fn normalize_subject(subject: &str) -> String {
+    static RE: OnceLock<Regex> = OnceLock::new();
+    let re = RE.get_or_init(|| Regex::new(r"(?i)^((Re|Fwd|Aw|Antw|Vs):[ \t]*)+").unwrap());
+    re.replace(subject, "").trim().to_string()
+}

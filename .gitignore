@@ -1,0 +1,11 @@
+/target
+/mail.nt
+/output
+/sample
+*.nt
+*.ttl
+*.nq
+*.gz
+.DS_Store
+Cargo.lock
+convert_all.sh
