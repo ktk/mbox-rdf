@@ -33,4 +33,4 @@ qlever ui  # Optional: opens the QLever UI in your browser
 ```
 
 ## Configuration
-The `Qleverfile` is configured to use `gzcat` for gzipped files, which is the standard on macOS. If you are on Linux, you might need to change this to `zcat` in the `Qleverfile`.
+The `Qleverfile` is configured to use `gzip -dc` for gzipped files, which is platform-independent and works on both macOS and Linux.

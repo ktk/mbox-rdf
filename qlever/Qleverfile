@@ -10,8 +10,7 @@ FORMAT           = nq
 
 [index]
 INPUT_FILES     = *.nq.gz
-# On macOS, gzcat is standard for gzipped files. qlever index calls this.
-CAT_INPUT_FILES = gzcat ${INPUT_FILES}
+CAT_INPUT_FILES = gzip -dc ${INPUT_FILES}
 SETTINGS_JSON   = { "num-triples-per-batch": 1000000 }
 TEXT_INDEX      = from_literals
 
