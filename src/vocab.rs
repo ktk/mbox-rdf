@@ -10,6 +10,8 @@ pub const RDF_TYPE: &str = "http://www.w3.org/1999/02/22-rdf-syntax-ns#type";
 pub const RDFS_LABEL: &str = "http://www.w3.org/2000/01/rdf-schema#label";
 pub const RDFS_DOMAIN: &str = "http://www.w3.org/2000/01/rdf-schema#domain";
 pub const RDFS_RANGE: &str = "http://www.w3.org/2000/01/rdf-schema#range";
+pub const DCAT_BYTE_SIZE: &str = "http://www.w3.org/ns/dcat#byteSize";
+pub const XSD_NON_NEG_INT: &str = "http://www.w3.org/2001/XMLSchema#nonNegativeInteger";
 
 pub struct Vocab {
     pub schema_base: String,

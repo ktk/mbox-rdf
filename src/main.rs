@@ -296,6 +296,7 @@ fn process_message<W: Write>(
         
         let ctype = att.content_type().map(|c| c.ctype()).unwrap_or("application/octet-stream");
         add_literal_triple(&mut triples, &att_iri, &vocab.term("contentType"), ctype, graph_iri);
+        add_typed_literal_triple(&mut triples, &att_iri, vocab::DCAT_BYTE_SIZE, &content.len().to_string(), vocab::XSD_NON_NEG_INT, graph_iri);
     }
 
     // Serialize all triples/quads for this message

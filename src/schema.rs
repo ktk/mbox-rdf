@@ -10,6 +10,7 @@ pub fn generate_schema(vocab: &Vocab, output_path: &str) -> Result<()> {
     writeln!(f, "@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .")?;
     writeln!(f, "@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .")?;
     writeln!(f, "@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .")?;
+    writeln!(f, "@prefix dcat: <http://www.w3.org/ns/dcat#> .")?;
     writeln!(f, "@prefix mail: <{}> .", mail)?;
     writeln!(f)?;
 
@@ -44,6 +45,13 @@ pub fn generate_schema(vocab: &Vocab, output_path: &str) -> Result<()> {
     write_property(&mut f, mail, "hash", "Attachment", "xsd:string", "SHA-256 hash of the content")?;
     write_property(&mut f, mail, "filename", "Attachment", "xsd:string", "Attachment filename")?;
     write_property(&mut f, mail, "contentType", "Attachment", "xsd:string", "MIME content type")?;
+
+    writeln!(f, "# Reused external vocabulary term")?;
+    writeln!(f, "dcat:byteSize rdf:type rdf:Property ;")?;
+    writeln!(f, "    rdfs:label \"Size in bytes of the attachment content\" ;")?;
+    writeln!(f, "    rdfs:domain mail:Attachment ;")?;
+    writeln!(f, "    rdfs:range xsd:nonNegativeInteger .")?;
+    writeln!(f)?;
     write_property(&mut f, mail, "listId", "MailingList", "xsd:string", "Mailing list identifier")?;
     write_property(&mut f, mail, "listArchive", "MailingList", "xsd:anyURI", "URL of the mailing list archive")?;
 
