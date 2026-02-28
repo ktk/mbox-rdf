@@ -104,12 +104,15 @@ fn main() -> Result<()> {
         let mbox = MboxFile::from_file(Path::new(input_path))
             .with_context(|| format!("Failed to open mbox file {}", input_path))?;
 
+        let mut last_from_offset = 0;
         for entry in mbox.iter() {
             if let Some(limit) = args.limit {
                 if total_processed >= limit {
                     break;
                 }
             }
+
+            last_from_offset = entry.offset();
 
             if let Some(raw_message) = entry.message() {
                 match process_message(&vocab, raw_message, &folder_iri_str, &absolute_input_path, args.include_body, args.graph_iri.as_deref(), &mut writer) {
@@ -122,6 +125,30 @@ fn main() -> Result<()> {
                     Err(e) => {
                         eprintln!("Error processing message {} in {}: {}", total_processed + total_failed, input_path, e);
                         total_failed += 1;
+                    }
+                }
+            }
+        }
+
+        // mbox-reader drops the last message (it only emits on seeing the *next* "From " line).
+        // Extract it manually by reading the file from the last known offset.
+        let mbox_bytes = std::fs::read(input_path)
+            .with_context(|| format!("Failed to re-read mbox file {}", input_path))?;
+        if let Some(last_start) = mbox_bytes[last_from_offset..]
+            .windows(5)
+            .rposition(|w| w == b"From ")
+            .map(|rel| last_from_offset + rel)
+        {
+            if let Some(nl) = mbox_bytes[last_start..].iter().position(|&b| b == b'\n') {
+                let raw_message = &mbox_bytes[last_start + nl + 1..];
+                let at_limit = args.limit.is_some_and(|l| total_processed >= l);
+                if !raw_message.is_empty() && !at_limit {
+                    match process_message(&vocab, raw_message, &folder_iri_str, &absolute_input_path, args.include_body, args.graph_iri.as_deref(), &mut writer) {
+                        Ok(_) => total_processed += 1,
+                        Err(e) => {
+                            eprintln!("Error processing last message in {}: {}", input_path, e);
+                            total_failed += 1;
+                        }
                     }
                 }
             }
