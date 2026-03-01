@@ -1,0 +1,14 @@
+PREFIX mail: <https://mail.described.at/>
+
+SELECT ?bucket (COUNT(?msg) AS ?count) WHERE {
+  ?msg mail:size ?size .
+  BIND(
+    IF(?size < 1024, "< 1 KB",
+    IF(?size < 10240, "1-10 KB",
+    IF(?size < 102400, "10-100 KB",
+    IF(?size < 1048576, "100 KB - 1 MB",
+    IF(?size < 10485760, "1-10 MB",
+    "> 10 MB"))))) AS ?bucket)
+}
+GROUP BY ?bucket
+ORDER BY ?count

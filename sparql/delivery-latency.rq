@@ -1,0 +1,8 @@
+PREFIX schema: <http://schema.org/>
+
+SELECT (AVG(?delayMinutes) AS ?avgDelay) (MAX(?delayMinutes) AS ?maxDelay) (COUNT(?msg) AS ?msgCount) WHERE {
+  ?msg schema:dateCreated ?sent ;
+       schema:dateReceived ?received .
+  BIND(MINUTES(?received - ?sent) + HOURS(?received - ?sent) * 60 AS ?delayMinutes)
+  FILTER(?delayMinutes >= 0 && ?delayMinutes < 10080)
+}
