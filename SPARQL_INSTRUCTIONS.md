@@ -16,8 +16,8 @@ PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
 
 Each email account is stored in its own named graph (N-Quads). Example graph IRIs:
 
-- `urn:email:ktk@netlabs.org`
-- `urn:email:adrian.gschwend@zazuko.com`
+- `urn:email:user@domain.org`
+- `urn:email:someone@gmail.com`
 
 Use `FROM <urn:email:...>` to scope queries to one account, or omit it to query across all.
 
