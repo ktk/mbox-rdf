@@ -1,0 +1,10 @@
+PREFIX schema: <http://schema.org/>
+
+SELECT ?hash (COUNT(DISTINCT ?msg) AS ?shareCount) (GROUP_CONCAT(DISTINCT ?filename; separator=", ") AS ?filenames) WHERE {
+  ?msg schema:associatedMedia ?att .
+  ?att schema:sha256 ?hash .
+  OPTIONAL { ?att schema:name ?filename }
+}
+GROUP BY ?hash
+HAVING (?shareCount > 1)
+ORDER BY DESC(?shareCount)

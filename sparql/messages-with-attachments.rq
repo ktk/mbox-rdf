@@ -1,0 +1,10 @@
+PREFIX mail: <https://mail.described.at/>
+PREFIX schema: <http://schema.org/>
+
+SELECT ?msg ?subject ?count ?date WHERE {
+  ?msg mail:attachmentCount ?count ;
+       mail:subject ?subject ;
+       schema:dateCreated ?date .
+}
+ORDER BY DESC(?count)
+LIMIT 20

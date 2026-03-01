@@ -1,0 +1,7 @@
+PREFIX mail: <https://mail.described.at/>
+
+SELECT ?client (COUNT(?msg) AS ?useCount) WHERE {
+  ?msg mail:userAgent ?client .
+}
+GROUP BY ?client
+ORDER BY DESC(?useCount)

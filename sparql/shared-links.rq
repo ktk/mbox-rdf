@@ -1,0 +1,8 @@
+PREFIX mail: <https://mail.described.at/>
+
+SELECT ?url (COUNT(?msg) AS ?mentions) WHERE {
+  ?msg mail:linksTo ?url .
+}
+GROUP BY ?url
+ORDER BY DESC(?mentions)
+LIMIT 25

@@ -1,0 +1,9 @@
+PREFIX schema: <http://schema.org/>
+PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
+
+SELECT ?hour (COUNT(?msg) AS ?msgCount) WHERE {
+  ?msg schema:dateCreated ?date .
+  BIND(HOURS(?date) AS ?hour)
+}
+GROUP BY ?hour
+ORDER BY ?hour

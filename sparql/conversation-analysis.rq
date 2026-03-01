@@ -1,0 +1,11 @@
+PREFIX mail: <https://mail.described.at/>
+PREFIX schema: <http://schema.org/>
+
+SELECT ?normalizedSubject (COUNT(?msg) AS ?volume) (MIN(?date) AS ?started) (MAX(?date) AS ?lastActive) WHERE {
+  ?msg mail:normalizedSubject ?normalizedSubject ;
+       schema:dateCreated ?date .
+}
+GROUP BY ?normalizedSubject
+HAVING (?volume > 1)
+ORDER BY DESC(?volume)
+LIMIT 20

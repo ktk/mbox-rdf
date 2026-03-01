@@ -1,0 +1,10 @@
+PREFIX mail: <https://mail.described.at/>
+PREFIX schema: <http://schema.org/>
+
+SELECT ?sender (SAMPLE(?name) AS ?displayName) (COUNT(?msg) AS ?count) WHERE {
+  ?msg mail:from ?sender .
+  OPTIONAL { ?sender schema:name ?name }
+}
+GROUP BY ?sender
+ORDER BY DESC(?count)
+LIMIT 10

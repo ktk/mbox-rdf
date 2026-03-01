@@ -1,0 +1,8 @@
+PREFIX mail: <https://mail.described.at/>
+
+SELECT ?listId (COUNT(?msg) AS ?msgCount) WHERE {
+  ?msg mail:belongsToList ?list .
+  ?list mail:listId ?listId .
+}
+GROUP BY ?listId
+ORDER BY DESC(?msgCount)

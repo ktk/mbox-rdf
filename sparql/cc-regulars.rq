@@ -1,0 +1,15 @@
+PREFIX mail: <https://mail.described.at/>
+PREFIX schema: <http://schema.org/>
+
+SELECT DISTINCT ?account ?name (COUNT(?msg) AS ?ccCount) WHERE {
+  ?msg mail:cc ?account .
+  OPTIONAL { ?account schema:name ?name }
+  
+  # Never sent an email
+  FILTER NOT EXISTS { ?msgFrom mail:from ?account }
+  # Never a primary recipient
+  FILTER NOT EXISTS { ?msgTo mail:to ?account }
+}
+GROUP BY ?account ?name
+ORDER BY DESC(?ccCount)
+LIMIT 10

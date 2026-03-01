@@ -1,0 +1,8 @@
+PREFIX mail: <https://mail.described.at/>
+
+SELECT ?msg ?msgSubject ?parent ?parentSubject WHERE {
+  ?msg mail:inReplyTo ?parent ;
+       mail:subject ?msgSubject .
+  ?parent mail:subject ?parentSubject .
+}
+LIMIT 10

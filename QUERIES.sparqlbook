@@ -14,8 +14,10 @@
   {
     "kind": 2,
     "language": "sparql",
-    "value": "\nPREFIX mail: <https://mail.described.at/>\nPREFIX schema: <http://schema.org/>\n\nSELECT ?sender (SAMPLE(?name) AS ?displayName) (COUNT(?msg) AS ?count) WHERE {\n  ?msg mail:from ?sender .\n  OPTIONAL { ?sender schema:name ?name }\n}\nGROUP BY ?sender\nORDER BY DESC(?count)\nLIMIT 10",
-    "metadata": {}
+    "value": "# from file sparql/top-senders.rq\nPREFIX mail: <https://mail.described.at/>\nPREFIX schema: <http://schema.org/>\n\nSELECT ?sender (SAMPLE(?name) AS ?displayName) (COUNT(?msg) AS ?count) WHERE {\n  ?msg mail:from ?sender .\n  OPTIONAL { ?sender schema:name ?name }\n}\nGROUP BY ?sender\nORDER BY DESC(?count)\nLIMIT 10",
+    "metadata": {
+      "file": "sparql/top-senders.rq"
+    }
   },
   {
     "kind": 1,
@@ -26,8 +28,10 @@
   {
     "kind": 2,
     "language": "sparql",
-    "value": "\nPREFIX mail: <https://mail.described.at/>\nPREFIX schema: <http://schema.org/>\n\nSELECT ?normalizedSubject (COUNT(?msg) AS ?volume) (MIN(?date) AS ?started) (MAX(?date) AS ?lastActive) WHERE {\n  ?msg mail:normalizedSubject ?normalizedSubject ;\n       schema:dateCreated ?date .\n}\nGROUP BY ?normalizedSubject\nHAVING (?volume > 1)\nORDER BY DESC(?volume)\nLIMIT 20",
-    "metadata": {}
+    "value": "# from file sparql/conversation-analysis.rq\nPREFIX mail: <https://mail.described.at/>\nPREFIX schema: <http://schema.org/>\n\nSELECT ?normalizedSubject (COUNT(?msg) AS ?volume) (MIN(?date) AS ?started) (MAX(?date) AS ?lastActive) WHERE {\n  ?msg mail:normalizedSubject ?normalizedSubject ;\n       schema:dateCreated ?date .\n}\nGROUP BY ?normalizedSubject\nHAVING (?volume > 1)\nORDER BY DESC(?volume)\nLIMIT 20",
+    "metadata": {
+      "file": "sparql/conversation-analysis.rq"
+    }
   },
   {
     "kind": 1,
@@ -38,8 +42,10 @@
   {
     "kind": 2,
     "language": "sparql",
-    "value": "\nPREFIX mail: <https://mail.described.at/>\nPREFIX schema: <http://schema.org/>\n\nSELECT DISTINCT ?account ?name (COUNT(?msg) AS ?ccCount) WHERE {\n  ?msg mail:cc ?account .\n  OPTIONAL { ?account schema:name ?name }\n  \n  # Never sent an email\n  FILTER NOT EXISTS { ?msgFrom mail:from ?account }\n  # Never a primary recipient\n  FILTER NOT EXISTS { ?msgTo mail:to ?account }\n}\nGROUP BY ?account ?name\nORDER BY DESC(?ccCount)\nLIMIT 10",
-    "metadata": {}
+    "value": "# from file sparql/cc-regulars.rq\nPREFIX mail: <https://mail.described.at/>\nPREFIX schema: <http://schema.org/>\n\nSELECT DISTINCT ?account ?name (COUNT(?msg) AS ?ccCount) WHERE {\n  ?msg mail:cc ?account .\n  OPTIONAL { ?account schema:name ?name }\n  \n  # Never sent an email\n  FILTER NOT EXISTS { ?msgFrom mail:from ?account }\n  # Never a primary recipient\n  FILTER NOT EXISTS { ?msgTo mail:to ?account }\n}\nGROUP BY ?account ?name\nORDER BY DESC(?ccCount)\nLIMIT 10",
+    "metadata": {
+      "file": "sparql/cc-regulars.rq"
+    }
   },
   {
     "kind": 1,
@@ -50,8 +56,10 @@
   {
     "kind": 2,
     "language": "sparql",
-    "value": "\nPREFIX mail: <https://mail.described.at/>\n\nSELECT ?client (COUNT(?msg) AS ?useCount) WHERE {\n  ?msg mail:userAgent ?client .\n}\nGROUP BY ?client\nORDER BY DESC(?useCount)",
-    "metadata": {}
+    "value": "# from file sparql/mail-clients.rq\nPREFIX mail: <https://mail.described.at/>\n\nSELECT ?client (COUNT(?msg) AS ?useCount) WHERE {\n  ?msg mail:userAgent ?client .\n}\nGROUP BY ?client\nORDER BY DESC(?useCount)",
+    "metadata": {
+      "file": "sparql/mail-clients.rq"
+    }
   },
   {
     "kind": 1,
@@ -62,8 +70,10 @@
   {
     "kind": 2,
     "language": "sparql",
-    "value": "\nPREFIX mail: <https://mail.described.at/>\n\nSELECT ?url (COUNT(?msg) AS ?mentions) WHERE {\n  ?msg mail:linksTo ?url .\n}\nGROUP BY ?url\nORDER BY DESC(?mentions)\nLIMIT 25",
-    "metadata": {}
+    "value": "# from file sparql/shared-links.rq\nPREFIX mail: <https://mail.described.at/>\n\nSELECT ?url (COUNT(?msg) AS ?mentions) WHERE {\n  ?msg mail:linksTo ?url .\n}\nGROUP BY ?url\nORDER BY DESC(?mentions)\nLIMIT 25",
+    "metadata": {
+      "file": "sparql/shared-links.rq"
+    }
   },
   {
     "kind": 1,
@@ -74,8 +84,10 @@
   {
     "kind": 2,
     "language": "sparql",
-    "value": "\nPREFIX schema: <http://schema.org/>\n\nSELECT ?hash (COUNT(DISTINCT ?msg) AS ?shareCount) (GROUP_CONCAT(DISTINCT ?filename; separator=\", \") AS ?filenames) WHERE {\n  ?msg schema:associatedMedia ?att .\n  ?att schema:sha256 ?hash .\n  OPTIONAL { ?att schema:name ?filename }\n}\nGROUP BY ?hash\nHAVING (?shareCount > 1)\nORDER BY DESC(?shareCount)",
-    "metadata": {}
+    "value": "# from file sparql/content-dedup.rq\nPREFIX schema: <http://schema.org/>\n\nSELECT ?hash (COUNT(DISTINCT ?msg) AS ?shareCount) (GROUP_CONCAT(DISTINCT ?filename; separator=\", \") AS ?filenames) WHERE {\n  ?msg schema:associatedMedia ?att .\n  ?att schema:sha256 ?hash .\n  OPTIONAL { ?att schema:name ?filename }\n}\nGROUP BY ?hash\nHAVING (?shareCount > 1)\nORDER BY DESC(?shareCount)",
+    "metadata": {
+      "file": "sparql/content-dedup.rq"
+    }
   },
   {
     "kind": 1,
@@ -86,8 +98,10 @@
   {
     "kind": 2,
     "language": "sparql",
-    "value": "\nPREFIX mail: <https://mail.described.at/>\n\nSELECT ?listId (COUNT(?msg) AS ?msgCount) WHERE {\n  ?msg mail:belongsToList ?list .\n  ?list mail:listId ?listId .\n}\nGROUP BY ?listId\nORDER BY DESC(?msgCount)",
-    "metadata": {}
+    "value": "# from file sparql/mailing-list-volume.rq\nPREFIX mail: <https://mail.described.at/>\n\nSELECT ?listId (COUNT(?msg) AS ?msgCount) WHERE {\n  ?msg mail:belongsToList ?list .\n  ?list mail:listId ?listId .\n}\nGROUP BY ?listId\nORDER BY DESC(?msgCount)",
+    "metadata": {
+      "file": "sparql/mailing-list-volume.rq"
+    }
   },
   {
     "kind": 1,
@@ -98,8 +112,10 @@
   {
     "kind": 2,
     "language": "sparql",
-    "value": "\nPREFIX mail: <https://mail.described.at/>\nPREFIX schema: <http://schema.org/>\n\nSELECT ?thread (COUNT(?msg) AS ?msgCount) (MIN(?date) AS ?started) (MAX(?date) AS ?lastActive) (SAMPLE(?subject) AS ?sampleSubject) WHERE {\n  ?msg mail:thread ?thread ;\n       schema:dateCreated ?date .\n  OPTIONAL { ?msg mail:subject ?subject }\n}\nGROUP BY ?thread\nHAVING (?msgCount > 1)\nORDER BY DESC(?msgCount)\nLIMIT 20",
-    "metadata": {}
+    "value": "# from file sparql/thread-overview.rq\nPREFIX mail: <https://mail.described.at/>\nPREFIX schema: <http://schema.org/>\n\nSELECT ?thread (COUNT(?msg) AS ?msgCount) (MIN(?date) AS ?started) (MAX(?date) AS ?lastActive) (SAMPLE(?subject) AS ?sampleSubject) WHERE {\n  ?msg mail:thread ?thread ;\n       schema:dateCreated ?date .\n  OPTIONAL { ?msg mail:subject ?subject }\n}\nGROUP BY ?thread\nHAVING (?msgCount > 1)\nORDER BY DESC(?msgCount)\nLIMIT 20",
+    "metadata": {
+      "file": "sparql/thread-overview.rq"
+    }
   },
   {
     "kind": 1,
@@ -110,8 +126,10 @@
   {
     "kind": 2,
     "language": "sparql",
-    "value": "\nPREFIX mail: <https://mail.described.at/>\n\nSELECT ?msg ?msgSubject ?parent ?parentSubject WHERE {\n  ?msg mail:inReplyTo ?parent ;\n       mail:subject ?msgSubject .\n  ?parent mail:subject ?parentSubject .\n}\nLIMIT 10",
-    "metadata": {}
+    "value": "# from file sparql/thread-walking.rq\nPREFIX mail: <https://mail.described.at/>\n\nSELECT ?msg ?msgSubject ?parent ?parentSubject WHERE {\n  ?msg mail:inReplyTo ?parent ;\n       mail:subject ?msgSubject .\n  ?parent mail:subject ?parentSubject .\n}\nLIMIT 10",
+    "metadata": {
+      "file": "sparql/thread-walking.rq"
+    }
   },
   {
     "kind": 1,
@@ -122,8 +140,10 @@
   {
     "kind": 2,
     "language": "sparql",
-    "value": "\nPREFIX schema: <http://schema.org/>\nPREFIX xsd: <http://www.w3.org/2001/XMLSchema#>\n\nSELECT ?hour (COUNT(?msg) AS ?msgCount) WHERE {\n  ?msg schema:dateCreated ?date .\n  BIND(HOURS(?date) AS ?hour)\n}\nGROUP BY ?hour\nORDER BY ?hour",
-    "metadata": {}
+    "value": "# from file sparql/hourly-peaks.rq\nPREFIX schema: <http://schema.org/>\nPREFIX xsd: <http://www.w3.org/2001/XMLSchema#>\n\nSELECT ?hour (COUNT(?msg) AS ?msgCount) WHERE {\n  ?msg schema:dateCreated ?date .\n  BIND(HOURS(?date) AS ?hour)\n}\nGROUP BY ?hour\nORDER BY ?hour",
+    "metadata": {
+      "file": "sparql/hourly-peaks.rq"
+    }
   },
   {
     "kind": 1,
@@ -134,8 +154,10 @@
   {
     "kind": 2,
     "language": "sparql",
-    "value": "\nPREFIX schema: <http://schema.org/>\n\nSELECT ?mimeType (COUNT(?att) AS ?count) WHERE {\n  ?msg schema:associatedMedia ?att .\n  ?att schema:encodingFormat ?mimeType .\n}\nGROUP BY ?mimeType\nORDER BY DESC(?count)",
-    "metadata": {}
+    "value": "# from file sparql/attachment-types.rq\nPREFIX schema: <http://schema.org/>\n\nSELECT ?mimeType (COUNT(?att) AS ?count) WHERE {\n  ?msg schema:associatedMedia ?att .\n  ?att schema:encodingFormat ?mimeType .\n}\nGROUP BY ?mimeType\nORDER BY DESC(?count)",
+    "metadata": {
+      "file": "sparql/attachment-types.rq"
+    }
   },
   {
     "kind": 1,
@@ -146,8 +168,10 @@
   {
     "kind": 2,
     "language": "sparql",
-    "value": "\nPREFIX mail: <https://mail.described.at/>\nPREFIX schema: <http://schema.org/>\nPREFIX xsd: <http://www.w3.org/2001/XMLSchema#>\n\nSELECT ?msg ?from ?subject ?date\nWHERE {\n  ?msg mail:from ?from ;\n       mail:subject ?subject ;\n       schema:dateCreated ?date .\n  \n  FILTER(CONTAINS(STR(?from), \"@example.org\"))\n  FILTER(?date >= \"2024-01-01T00:00:00Z\"^^xsd:dateTime && ?date <= \"2024-12-31T23:59:59Z\"^^xsd:dateTime)\n}\nORDER BY DESC(?date)\nLIMIT 10",
-    "metadata": {}
+    "value": "# from file sparql/domain-search.rq\nPREFIX mail: <https://mail.described.at/>\nPREFIX schema: <http://schema.org/>\nPREFIX xsd: <http://www.w3.org/2001/XMLSchema#>\n\nSELECT ?msg ?from ?subject ?date\nWHERE {\n  ?msg mail:from ?from ;\n       mail:subject ?subject ;\n       schema:dateCreated ?date .\n  \n  FILTER(CONTAINS(STR(?from), \"@example.org\"))\n  FILTER(?date >= \"2024-01-01T00:00:00Z\"^^xsd:dateTime && ?date <= \"2024-12-31T23:59:59Z\"^^xsd:dateTime)\n}\nORDER BY DESC(?date)\nLIMIT 10",
+    "metadata": {
+      "file": "sparql/domain-search.rq"
+    }
   },
   {
     "kind": 1,
@@ -158,8 +182,10 @@
   {
     "kind": 2,
     "language": "sparql",
-    "value": "\nPREFIX mail: <https://mail.described.at/>\n\nSELECT ?msg ?subject ?url WHERE {\n  ?msg mail:subject ?subject ;\n       mail:linksTo ?url .\n  FILTER(CONTAINS(STR(?url), \"github.com\"))\n}\nLIMIT 20",
-    "metadata": {}
+    "value": "# from file sparql/mentioned-domain.rq\nPREFIX mail: <https://mail.described.at/>\n\nSELECT ?msg ?subject ?url WHERE {\n  ?msg mail:subject ?subject ;\n       mail:linksTo ?url .\n  FILTER(CONTAINS(STR(?url), \"github.com\"))\n}\nLIMIT 20",
+    "metadata": {
+      "file": "sparql/mentioned-domain.rq"
+    }
   },
   {
     "kind": 1,
@@ -170,7 +196,9 @@
   {
     "kind": 2,
     "language": "sparql",
-    "value": "\nPREFIX mail: <https://mail.described.at/>\nPREFIX schema: <http://schema.org/>\n\nSELECT ?msg ?subject ?count ?date WHERE {\n  ?msg mail:attachmentCount ?count ;\n       mail:subject ?subject ;\n       schema:dateCreated ?date .\n}\nORDER BY DESC(?count)\nLIMIT 20",
-    "metadata": {}
+    "value": "# from file sparql/messages-with-attachments.rq\nPREFIX mail: <https://mail.described.at/>\nPREFIX schema: <http://schema.org/>\n\nSELECT ?msg ?subject ?count ?date WHERE {\n  ?msg mail:attachmentCount ?count ;\n       mail:subject ?subject ;\n       schema:dateCreated ?date .\n}\nORDER BY DESC(?count)\nLIMIT 20",
+    "metadata": {
+      "file": "sparql/messages-with-attachments.rq"
+    }
   }
 ]

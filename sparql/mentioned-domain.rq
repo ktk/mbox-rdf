@@ -1,0 +1,8 @@
+PREFIX mail: <https://mail.described.at/>
+
+SELECT ?msg ?subject ?url WHERE {
+  ?msg mail:subject ?subject ;
+       mail:linksTo ?url .
+  FILTER(CONTAINS(STR(?url), "github.com"))
+}
+LIMIT 20

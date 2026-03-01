@@ -1,0 +1,12 @@
+PREFIX mail: <https://mail.described.at/>
+PREFIX schema: <http://schema.org/>
+
+SELECT ?thread (COUNT(?msg) AS ?msgCount) (MIN(?date) AS ?started) (MAX(?date) AS ?lastActive) (SAMPLE(?subject) AS ?sampleSubject) WHERE {
+  ?msg mail:thread ?thread ;
+       schema:dateCreated ?date .
+  OPTIONAL { ?msg mail:subject ?subject }
+}
+GROUP BY ?thread
+HAVING (?msgCount > 1)
+ORDER BY DESC(?msgCount)
+LIMIT 20

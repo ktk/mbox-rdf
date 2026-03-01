@@ -1,0 +1,8 @@
+PREFIX schema: <http://schema.org/>
+
+SELECT ?mimeType (COUNT(?att) AS ?count) WHERE {
+  ?msg schema:associatedMedia ?att .
+  ?att schema:encodingFormat ?mimeType .
+}
+GROUP BY ?mimeType
+ORDER BY DESC(?count)
