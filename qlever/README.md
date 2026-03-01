@@ -18,7 +18,7 @@ It is recommended to write your RDF data directly to `.gz` format to save signif
 ```bash
 # Example for a single folder
 cargo run --release -- path/to/INBOX \
-  --data-iri https://data.zazuko.com/mbox/user/ \
+  --data-iri https://example.org/data/ \
   --graph-iri urn:email:user@example.com \
   --output qlever/mail.nq.gz
 ```
