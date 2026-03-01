@@ -149,15 +149,10 @@ ORDER BY DESC(?size)
 
 ### Text search (QLever-specific)
 
-QLever supports full-text search on indexed literals:
-
-```sparql
-SELECT ?msg ?subject ?text WHERE {
-  ?text ql:contains-word "project deadline" .
-  ?msg mail:subject ?text .
-  BIND(?text AS ?subject)
-}
-```
+> **TODO**: QLever is replacing `ql:contains-word` with `ql:has-word` + materialized views
+> (see [QLever PR #2579](https://github.com/ad-freiburg/qlever/pull/2579)).
+> Once merged, create a materialized view over `mail:subject` (weight 5) and
+> `mail:bodyText` (weight 1) for ranked keyword search across messages.
 
 ## Tips
 
