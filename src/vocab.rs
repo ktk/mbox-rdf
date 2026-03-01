@@ -46,7 +46,14 @@ impl Vocab {
     }
 
     pub fn account_iri(&self, email: &str) -> String {
-        format!("mailto:{}", email.to_lowercase())
+        let lower = email.to_lowercase();
+        // Percent-encode characters that are illegal in IRIs
+        let sanitized = lower
+            .replace('"', "%22")
+            .replace(' ', "%20")
+            .replace('<', "%3C")
+            .replace('>', "%3E");
+        format!("mailto:{}", sanitized)
     }
 
     pub fn thread_iri(&self, root_msg_id: &str) -> String {
