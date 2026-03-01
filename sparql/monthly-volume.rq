@@ -1,0 +1,8 @@
+PREFIX schema: <http://schema.org/>
+
+SELECT ?month (COUNT(?msg) AS ?msgCount) WHERE {
+  ?msg schema:dateCreated ?date .
+  BIND(CONCAT(STR(YEAR(?date)), "-", IF(MONTH(?date) < 10, CONCAT("0", STR(MONTH(?date))), STR(MONTH(?date)))) AS ?month)
+}
+GROUP BY ?month
+ORDER BY ?month
