@@ -14,7 +14,8 @@ Currently, the tool operates on local mbox files (such as those used by Thunderb
 - **Streaming Architecture**: Designed to handle archives of any size with minimal memory footprint.
 - **Gzip & N-Quads**: Native support for compressed output and named graphs for multi-account analysis.
 - **Timezone Aware**: Accurate `xsd:dateTime` literals preserving original sender offsets.
-- **Automatic Schema**: Generates `mail-schema.ttl` to guide your analysis.
+- **Schema.org Aligned**: Uses `schema:CreativeWork`, `schema:MediaObject`, `schema:dateCreated`, and `schema:name` for interoperability.
+- **SHACL Shapes**: Includes `mail-shapes.ttl` for validation and documentation.
 
 ## Usage
 
@@ -28,37 +29,54 @@ cargo run --release -- path/to/INBOX --output mail.nt
 
 ```bash
 cargo run --release -- path/to/INBOX \
-  --schema-iri https://mail.described.at/ \
   --data-iri https://example.org/data/ \
   --graph-iri urn:email:user@example.com \
   --include-body \
   --output mail.nq.gz
 ```
 
-### Options and Help
+### Options
 
-To see all available options, use the help command:
-
-```bash
-cargo run --release -- --help
 ```
-
-The `--include-body` flag allows you to include the textual content of the email in the RDF output. This is useful for full-text search within your triple store, though it will significantly increase the size of the generated RDF file.
+-o, --output       Output path (.nt or .nq, optionally .gz) [default: mail.nt]
+    --data-iri     Base IRI for instance data [default: https://example.org/data/]
+    --graph-iri    Optional Graph IRI (enables N-Quads)
+    --gzip         Force Gzip compression
+    --include-body Include body text
+    --folder-name  Folder name override (default: derived from filename)
+    --limit        Limit number of messages to process
+```
 
 ## Vocabulary
 
-The tool generates a clean, flat vocabulary defined in `mail-schema.ttl`. Key concepts include:
-- `mail:Message`: Individual email messages.
-- `mail:Address`: Senders and recipients (associated with stable IRIs).
-- `mail:Attachment`: Metadata about files within the messages.
+The schema namespace is `https://mail.described.at/`. Key concepts:
 
-## Analytics with SPARQL
+- **`mail:Message`** (also `schema:CreativeWork`): Individual email messages.
+- **`mail:Account`**: Email accounts, identified by `mailto:` URIs (e.g., `<mailto:alice@example.com>`).
+- **`mail:Thread`**: Conversation threads, derived from the `References` header chain.
+- **`mail:MailingList`**: Mailing lists with `mail:listId`.
+- **`schema:MediaObject`**: File attachments with `schema:sha256`, `schema:encodingFormat`, `schema:name`.
 
-Check `QUERIES.sparqlbook` for advanced query examples. You can run these using the [SPARQL Notebook](https://marketplace.visualstudio.com/items?itemName=Zazuko.sparql-notebook) extension for VS Code.
-- Identifying stakeholders via CC analysis.
-- Heuristic thread discovery.
-- Hourly activity peaks.
-- Cross-folder duplicate detection.
+Dates use `schema:dateCreated` and `schema:dateReceived`. Display names use `schema:name`.
+
+Schema files:
+- `mail-schema.ttl` — RDFS class and property definitions
+- `mail-shapes.ttl` — SHACL validation shapes with cardinality constraints
+- `SPARQL_INSTRUCTIONS.md` — Complete reference for LLMs generating SPARQL queries
+
+## LLM Integration
+
+Point your LLM agent at [`SPARQL_INSTRUCTIONS.md`](SPARQL_INSTRUCTIONS.md) — it contains the complete schema reference with all classes, properties, cardinalities, and example query patterns. Enough for an LLM to generate correct SPARQL queries without needing to read the source code.
+
+## SPARQL Queries
+
+Queries live as standalone `.rq` files in `sparql/`. The `QUERIES.sparqlbook` references them for use with the [SPARQL Notebook](https://marketplace.visualstudio.com/items?itemName=Zazuko.sparql-notebook) VS Code extension.
+
+Run the smoke test to verify all queries return results:
+
+```bash
+SPARQL_ENDPOINT=http://localhost:7029 ./sparql/smoke-test.sh
+```
 
 ## Indexing and Querying with QLever
 
@@ -72,8 +90,6 @@ cd qlever
 qlever index  # Indexes the generated .nq.gz files
 qlever start  # Starts the SPARQL endpoint
 ```
-
-## Performance
 
 ## License
 
