@@ -5,6 +5,7 @@
 *.nt
 *.ttl
 !mail-shapes.ttl
+!mail-schema.ttl
 *.nq
 *.gz
 .DS_Store

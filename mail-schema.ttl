@@ -1,0 +1,138 @@
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+@prefix schema: <http://schema.org/> .
+@prefix mail: <https://mail.described.at/> .
+
+mail:Message rdf:type rdfs:Class ;
+    rdfs:label "An email message (also a schema:CreativeWork)" .
+
+mail:Account rdf:type rdfs:Class ;
+    rdfs:label "An email account identity (identified by mailto: URI)" .
+
+mail:Mailbox rdf:type rdfs:Class ;
+    rdfs:label "A mailbox or folder containing messages" .
+
+mail:Thread rdf:type rdfs:Class ;
+    rdfs:label "A conversation thread grouping related messages" .
+
+mail:MailingList rdf:type rdfs:Class ;
+    rdfs:label "A mailing list or discussion group" .
+
+# Attachments use schema:MediaObject with properties:
+# schema:associatedMedia (Message -> schema:MediaObject)
+# schema:name, schema:encodingFormat, schema:sha256, schema:contentSize
+
+# Dates use schema:dateCreated and schema:dateReceived
+# Display names use schema:name
+
+mail:messageId rdf:type rdf:Property ;
+    rdfs:label "RFC 822 Message-ID" ;
+    rdfs:domain mail:Message ;
+    rdfs:range xsd:string .
+
+mail:mid rdf:type rdf:Property ;
+    rdfs:label "Thunderbird-compatible mid: link" ;
+    rdfs:domain mail:Message ;
+    rdfs:range xsd:anyURI .
+
+mail:subject rdf:type rdf:Property ;
+    rdfs:label "Message subject" ;
+    rdfs:domain mail:Message ;
+    rdfs:range xsd:string .
+
+mail:normalizedSubject rdf:type rdf:Property ;
+    rdfs:label "Message subject with prefixes like Re:/Fwd: removed" ;
+    rdfs:domain mail:Message ;
+    rdfs:range xsd:string .
+
+mail:userAgent rdf:type rdf:Property ;
+    rdfs:label "Mail client software used to send the message" ;
+    rdfs:domain mail:Message ;
+    rdfs:range xsd:string .
+
+mail:linksTo rdf:type rdf:Property ;
+    rdfs:label "URL mentioned in the message body" ;
+    rdfs:domain mail:Message ;
+    rdfs:range xsd:anyURI .
+
+mail:from rdf:type rdf:Property ;
+    rdfs:label "Sender" ;
+    rdfs:domain mail:Message ;
+    rdfs:range mail:Account .
+
+mail:to rdf:type rdf:Property ;
+    rdfs:label "Primary recipient" ;
+    rdfs:domain mail:Message ;
+    rdfs:range mail:Account .
+
+mail:cc rdf:type rdf:Property ;
+    rdfs:label "Carbon copy recipient" ;
+    rdfs:domain mail:Message ;
+    rdfs:range mail:Account .
+
+mail:bcc rdf:type rdf:Property ;
+    rdfs:label "Blind carbon copy recipient" ;
+    rdfs:domain mail:Message ;
+    rdfs:range mail:Account .
+
+mail:replyTo rdf:type rdf:Property ;
+    rdfs:label "Reply-To address" ;
+    rdfs:domain mail:Message ;
+    rdfs:range mail:Account .
+
+mail:bodyText rdf:type rdf:Property ;
+    rdfs:label "Textual body content" ;
+    rdfs:domain mail:Message ;
+    rdfs:range xsd:string .
+
+mail:folder rdf:type rdf:Property ;
+    rdfs:label "Folder containing the message" ;
+    rdfs:domain mail:Message ;
+    rdfs:range mail:Mailbox .
+
+mail:sourcePath rdf:type rdf:Property ;
+    rdfs:label "Local path to the source mbox file" ;
+    rdfs:domain mail:Message ;
+    rdfs:range xsd:string .
+
+mail:inReplyTo rdf:type rdf:Property ;
+    rdfs:label "Parent message this is a reply to" ;
+    rdfs:domain mail:Message ;
+    rdfs:range mail:Message .
+
+mail:references rdf:type rdf:Property ;
+    rdfs:label "Ancestor messages in the same thread" ;
+    rdfs:domain mail:Message ;
+    rdfs:range mail:Message .
+
+mail:thread rdf:type rdf:Property ;
+    rdfs:label "Conversation thread this message belongs to" ;
+    rdfs:domain mail:Message ;
+    rdfs:range mail:Thread .
+
+mail:belongsToList rdf:type rdf:Property ;
+    rdfs:label "The mailing list this message belongs to" ;
+    rdfs:domain mail:Message ;
+    rdfs:range mail:MailingList .
+
+mail:attachmentCount rdf:type rdf:Property ;
+    rdfs:label "Number of attachments" ;
+    rdfs:domain mail:Message ;
+    rdfs:range xsd:integer .
+
+mail:size rdf:type rdf:Property ;
+    rdfs:label "Raw message size in bytes" ;
+    rdfs:domain mail:Message ;
+    rdfs:range xsd:integer .
+
+mail:listId rdf:type rdf:Property ;
+    rdfs:label "Mailing list identifier" ;
+    rdfs:domain mail:MailingList ;
+    rdfs:range xsd:string .
+
+mail:listArchive rdf:type rdf:Property ;
+    rdfs:label "URL of the mailing list archive" ;
+    rdfs:domain mail:MailingList ;
+    rdfs:range xsd:anyURI .
+

@@ -7,11 +7,7 @@ pub const SCHEMA_ORG: &str = "http://schema.org/";
 
 pub const XSD_DATETIME: &str = "http://www.w3.org/2001/XMLSchema#dateTime";
 pub const XSD_INTEGER: &str = "http://www.w3.org/2001/XMLSchema#integer";
-pub const XSD_STRING: &str = "http://www.w3.org/2001/XMLSchema#string";
 pub const RDF_TYPE: &str = "http://www.w3.org/1999/02/22-rdf-syntax-ns#type";
-pub const RDFS_LABEL: &str = "http://www.w3.org/2000/01/rdf-schema#label";
-pub const RDFS_DOMAIN: &str = "http://www.w3.org/2000/01/rdf-schema#domain";
-pub const RDFS_RANGE: &str = "http://www.w3.org/2000/01/rdf-schema#range";
 
 pub struct Vocab {
     pub schema_base: String,

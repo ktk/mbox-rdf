@@ -1,10 +1,9 @@
 mod vocab;
-mod schema;
 
 use anyhow::{Context, Result};
 use clap::Parser;
 use mbox_reader::MboxFile;
-use mail_parser::{MessageParser, Address, Addr, MimeHeaders, HeaderName, HeaderValue, GetHeader};
+use mail_parser::{MessageParser, Address, Addr, MimeHeaders, HeaderValue};
 use std::fs::File;
 use std::io::{BufWriter, Write};
 use std::path::Path;
@@ -30,10 +29,6 @@ struct Args {
     #[arg(long, default_value = DEFAULT_DATA_IRI)]
     data_iri: String,
 
-    /// Base IRI for the schema/ontology
-    #[arg(long, default_value = DEFAULT_SCHEMA_IRI)]
-    schema_iri: String,
-
     /// Optional Graph IRI (enables N-Quads)
     #[arg(long)]
     graph_iri: Option<String>,
@@ -50,10 +45,6 @@ struct Args {
     #[arg(long)]
     folder_name: Option<String>,
 
-    /// Generate schema file
-    #[arg(long, default_value = "mail-schema.ttl")]
-    schema_path: String,
-
     /// Limit number of messages to process
     #[arg(long)]
     limit: Option<usize>,
@@ -61,12 +52,7 @@ struct Args {
 
 fn main() -> Result<()> {
     let args = Args::parse();
-    let vocab = Vocab::new(args.schema_iri, args.data_iri);
-
-    // Generate schema
-    schema::generate_schema(&vocab, &args.schema_path)
-        .with_context(|| format!("Failed to generate schema at {}", args.schema_path))?;
-    println!("Schema generated at {}", args.schema_path);
+    let vocab = Vocab::new(DEFAULT_SCHEMA_IRI.to_string(), args.data_iri);
 
     let out_file = File::create(&args.output)
         .with_context(|| format!("Failed to create output file {}", args.output))?;
