@@ -2,49 +2,49 @@
   {
     "kind": 1,
     "language": "markdown",
-    "value": "# Email Analytics & Insights\n\nThis notebook contains 12 SPARQL queries that leverage the rich RDF structure of your mbox data. It demonstrates advanced analysis like thread grouping, link extraction, and mail client distribution.",
+    "value": "# Email Analytics & Insights\n\nThis notebook contains SPARQL queries that leverage the rich RDF structure of your mbox data. Messages are typed as `mail:Message` and `schema:CreativeWork`. Addresses use `mailto:` URIs with `mail:Account`. Attachments use `schema:MediaObject`.",
     "metadata": {}
   },
   {
     "kind": 1,
     "language": "markdown",
-    "value": "## 1. Top 10 Senders\nWho is filling up your inbox? This query counts messages by sender email address.",
+    "value": "## 1. Top 10 Senders\nWho is filling up your inbox? This query counts messages by sender `mailto:` URI.",
     "metadata": {}
   },
   {
     "kind": 2,
     "language": "sparql",
-    "value": "\nPREFIX mail: <https://mail.described.at/>\n\nSELECT ?email (COUNT(?msg) AS ?count) WHERE {\n  ?msg mail:from ?addr .\n  ?addr mail:addr ?email .\n}\nGROUP BY ?email\nORDER BY DESC(?count)\nLIMIT 10",
+    "value": "\nPREFIX mail: <https://mail.described.at/>\nPREFIX schema: <http://schema.org/>\n\nSELECT ?sender (SAMPLE(?name) AS ?displayName) (COUNT(?msg) AS ?count) WHERE {\n  ?msg mail:from ?sender .\n  OPTIONAL { ?sender schema:name ?name }\n}\nGROUP BY ?sender\nORDER BY DESC(?count)\nLIMIT 10",
     "metadata": {}
   },
   {
     "kind": 1,
     "language": "markdown",
-    "value": "## 2. Conversation Analysis (Normalized Subject)\nUnlike the heuristic subject grouping, this query uses the pre-computed `mail:normalizedSubject` to find the most active threads, ignoring prefixes like 'Re:' or 'Fwd:'.",
+    "value": "## 2. Conversation Analysis (Normalized Subject)\nUses the pre-computed `mail:normalizedSubject` to find the most active threads, ignoring prefixes like 'Re:' or 'Fwd:'.",
     "metadata": {}
   },
   {
     "kind": 2,
     "language": "sparql",
-    "value": "\nPREFIX mail: <https://mail.described.at/>\n\nSELECT ?normalizedSubject (COUNT(?msg) AS ?volume) (MIN(?date) AS ?started) (MAX(?date) AS ?lastActive) WHERE {\n  ?msg mail:normalizedSubject ?normalizedSubject ;\n       mail:date ?date .\n}\nGROUP BY ?normalizedSubject\nHAVING (?volume > 1)\nORDER BY DESC(?volume)\nLIMIT 20",
+    "value": "\nPREFIX mail: <https://mail.described.at/>\nPREFIX schema: <http://schema.org/>\n\nSELECT ?normalizedSubject (COUNT(?msg) AS ?volume) (MIN(?date) AS ?started) (MAX(?date) AS ?lastActive) WHERE {\n  ?msg mail:normalizedSubject ?normalizedSubject ;\n       schema:dateCreated ?date .\n}\nGROUP BY ?normalizedSubject\nHAVING (?volume > 1)\nORDER BY DESC(?volume)\nLIMIT 20",
     "metadata": {}
   },
   {
     "kind": 1,
     "language": "markdown",
-    "value": "## 3. Social Connectivity - The 'CC Regulars'\nFind people who are frequently CC'd on emails but have never sent you a direct message or been a primary recipient. Identifying stakeholders in your social graph.",
+    "value": "## 3. Social Connectivity - The 'CC Regulars'\nFind people who are frequently CC'd on emails but have never sent you a direct message or been a primary recipient.",
     "metadata": {}
   },
   {
     "kind": 2,
     "language": "sparql",
-    "value": "\nPREFIX mail: <https://mail.described.at/>\n\nSELECT DISTINCT ?email ?name (COUNT(?msg) AS ?ccCount) WHERE {\n  ?msg mail:cc ?addr .\n  ?addr mail:addr ?email .\n  OPTIONAL { ?addr mail:name ?name }\n  \n  # Never sent an email\n  FILTER NOT EXISTS { ?msgFrom mail:from ?addr }\n  # Never a primary recipient\n  FILTER NOT EXISTS { ?msgTo mail:to ?addr }\n}\nGROUP BY ?email ?name\nORDER BY DESC(?ccCount)\nLIMIT 10",
+    "value": "\nPREFIX mail: <https://mail.described.at/>\nPREFIX schema: <http://schema.org/>\n\nSELECT DISTINCT ?account ?name (COUNT(?msg) AS ?ccCount) WHERE {\n  ?msg mail:cc ?account .\n  OPTIONAL { ?account schema:name ?name }\n  \n  # Never sent an email\n  FILTER NOT EXISTS { ?msgFrom mail:from ?account }\n  # Never a primary recipient\n  FILTER NOT EXISTS { ?msgTo mail:to ?account }\n}\nGROUP BY ?account ?name\nORDER BY DESC(?ccCount)\nLIMIT 10",
     "metadata": {}
   },
   {
     "kind": 1,
     "language": "markdown",
-    "value": "## 4. Most Used Mail Clients\nWhat software is your network using? Aggregates traffic by `mail:userAgent` (extracted from User-Agent or X-Mailer headers).",
+    "value": "## 4. Most Used Mail Clients\nWhat software is your network using? Aggregates traffic by `mail:userAgent`.",
     "metadata": {}
   },
   {
@@ -56,7 +56,7 @@
   {
     "kind": 1,
     "language": "markdown",
-    "value": "## 5. Extracted Links: Most Shared Web Resources\n(currently not working)\n\nThis query identifies URLs shared in the message bodies. It ranks the most frequently mentioned web resources.",
+    "value": "## 5. Extracted Links: Most Shared Web Resources\n(currently not active)\n\nThis query identifies URLs shared in the message bodies.",
     "metadata": {}
   },
   {
@@ -68,13 +68,13 @@
   {
     "kind": 1,
     "language": "markdown",
-    "value": "## 6. Content Deduplication (Attachments)\nFind different messages that share the exact same file content, identified by its SHA-256 hash.",
+    "value": "## 6. Content Deduplication (Attachments)\nFind different messages that share the exact same attachment content, identified by SHA-256 hash.",
     "metadata": {}
   },
   {
     "kind": 2,
     "language": "sparql",
-    "value": "\nPREFIX mail: <https://mail.described.at/>\n\nSELECT ?hash (COUNT(DISTINCT ?msg) AS ?shareCount) (GROUP_CONCAT(DISTINCT ?filename; separator=\", \") AS ?filenames) WHERE {\n  ?msg mail:hasAttachment ?att .\n  ?att mail:hash ?hash ;\n       mail:filename ?filename .\n}\nGROUP BY ?hash\nHAVING (?shareCount > 1)\nORDER BY DESC(?shareCount)",
+    "value": "\nPREFIX schema: <http://schema.org/>\n\nSELECT ?hash (COUNT(DISTINCT ?msg) AS ?shareCount) (GROUP_CONCAT(DISTINCT ?filename; separator=\", \") AS ?filenames) WHERE {\n  ?msg schema:associatedMedia ?att .\n  ?att schema:sha256 ?hash .\n  OPTIONAL { ?att schema:name ?filename }\n}\nGROUP BY ?hash\nHAVING (?shareCount > 1)\nORDER BY DESC(?shareCount)",
     "metadata": {}
   },
   {
@@ -92,7 +92,19 @@
   {
     "kind": 1,
     "language": "markdown",
-    "value": "## 8. Thread Walking (Explicit)\nUses the explicit `mail:inReplyTo` relationship to find the direct parent of a message. Highly accurate even if the subject line changed.",
+    "value": "## 8. Thread Overview\nUses the `mail:Thread` resource to find the largest conversations by message count.",
+    "metadata": {}
+  },
+  {
+    "kind": 2,
+    "language": "sparql",
+    "value": "\nPREFIX mail: <https://mail.described.at/>\nPREFIX schema: <http://schema.org/>\n\nSELECT ?thread (COUNT(?msg) AS ?msgCount) (MIN(?date) AS ?started) (MAX(?date) AS ?lastActive) (SAMPLE(?subject) AS ?sampleSubject) WHERE {\n  ?msg mail:thread ?thread ;\n       schema:dateCreated ?date .\n  OPTIONAL { ?msg mail:subject ?subject }\n}\nGROUP BY ?thread\nHAVING (?msgCount > 1)\nORDER BY DESC(?msgCount)\nLIMIT 20",
+    "metadata": {}
+  },
+  {
+    "kind": 1,
+    "language": "markdown",
+    "value": "## 9. Thread Walking (Explicit)\nUses the explicit `mail:inReplyTo` relationship to find the direct parent of a message.",
     "metadata": {}
   },
   {
@@ -104,49 +116,61 @@
   {
     "kind": 1,
     "language": "markdown",
-    "value": "## 9. Hourly peaks\nAnalyze when most emails are sent across your entire archive.",
+    "value": "## 10. Hourly Peaks\nAnalyze when most emails are sent across your entire archive.",
     "metadata": {}
   },
   {
     "kind": 2,
     "language": "sparql",
-    "value": "\nPREFIX mail: <https://mail.described.at/>\nPREFIX xsd: <http://www.w3.org/2001/XMLSchema#>\n\nSELECT ?hour (COUNT(?msg) AS ?msgCount) WHERE {\n  ?msg mail:date ?date .\n  BIND(HOURS(?date) AS ?hour)\n}\nGROUP BY ?hour\nORDER BY ?hour",
+    "value": "\nPREFIX schema: <http://schema.org/>\nPREFIX xsd: <http://www.w3.org/2001/XMLSchema#>\n\nSELECT ?hour (COUNT(?msg) AS ?msgCount) WHERE {\n  ?msg schema:dateCreated ?date .\n  BIND(HOURS(?date) AS ?hour)\n}\nGROUP BY ?hour\nORDER BY ?hour",
     "metadata": {}
   },
   {
     "kind": 1,
     "language": "markdown",
-    "value": "## 10. Attachment Type Distribution\nWhat kind of files are you receiving? This query aggregates attachments by their MIME type.",
+    "value": "## 11. Attachment Type Distribution\nWhat kind of files are you receiving? Aggregates attachments by MIME type.",
     "metadata": {}
   },
   {
     "kind": 2,
     "language": "sparql",
-    "value": "\nPREFIX mail: <https://mail.described.at/>\n\nSELECT ?contentType (COUNT(?att) AS ?count) WHERE {\n  ?msg mail:hasAttachment ?att .\n  ?att mail:contentType ?contentType .\n}\nGROUP BY ?contentType\nORDER BY DESC(?count)",
+    "value": "\nPREFIX schema: <http://schema.org/>\n\nSELECT ?mimeType (COUNT(?att) AS ?count) WHERE {\n  ?msg schema:associatedMedia ?att .\n  ?att schema:encodingFormat ?mimeType .\n}\nGROUP BY ?mimeType\nORDER BY DESC(?count)",
     "metadata": {}
   },
   {
     "kind": 1,
     "language": "markdown",
-    "value": "## 11. Domain-Specific Search Example\nSearching for emails from a specific domain (e.g., example.org) within a date range.",
+    "value": "## 12. Domain-Specific Search\nSearching for emails from a specific domain (e.g., example.org) within a date range. Uses `mailto:` URI string matching.",
     "metadata": {}
   },
   {
     "kind": 2,
     "language": "sparql",
-    "value": "\nPREFIX mail: <https://mail.described.at/>\nPREFIX xsd: <http://www.w3.org/2001/XMLSchema#>\n\nSELECT ?msg ?fromEmail ?subject ?date WHERE {\n  ?msg mail:from ?from ;\n       mail:subject ?subject ;\n       mail:date ?date .\n  ?from mail:addr ?fromEmail .\n  \n  FILTER(CONTAINS(?fromEmail, \"@example.org\"))\n  FILTER(?date >= \"2024-01-01T00:00:00Z\"^^xsd:dateTime && ?date <= \"2024-12-31T23:59:59Z\"^^xsd:dateTime)\n}\nORDER BY DESC(?date)\nLIMIT 10",
+    "value": "\nPREFIX mail: <https://mail.described.at/>\nPREFIX schema: <http://schema.org/>\nPREFIX xsd: <http://www.w3.org/2001/XMLSchema#>\n\nSELECT ?msg ?from ?subject ?date\nWHERE {\n  ?msg mail:from ?from ;\n       mail:subject ?subject ;\n       schema:dateCreated ?date .\n  \n  FILTER(CONTAINS(STR(?from), \"@example.org\"))\n  FILTER(?date >= \"2024-01-01T00:00:00Z\"^^xsd:dateTime && ?date <= \"2024-12-31T23:59:59Z\"^^xsd:dateTime)\n}\nORDER BY DESC(?date)\nLIMIT 10",
     "metadata": {}
   },
   {
     "kind": 1,
     "language": "markdown",
-    "value": "## 12. Search by Mentioned Domain\nFind messages that link to specific web domains (e.g., GitHub) in their body.",
+    "value": "## 13. Search by Mentioned Domain\nFind messages that link to specific web domains (e.g., GitHub) in their body.",
     "metadata": {}
   },
   {
     "kind": 2,
     "language": "sparql",
     "value": "\nPREFIX mail: <https://mail.described.at/>\n\nSELECT ?msg ?subject ?url WHERE {\n  ?msg mail:subject ?subject ;\n       mail:linksTo ?url .\n  FILTER(CONTAINS(STR(?url), \"github.com\"))\n}\nLIMIT 20",
+    "metadata": {}
+  },
+  {
+    "kind": 1,
+    "language": "markdown",
+    "value": "## 14. Messages with Attachments\nFind messages that have attachments, using the denormalized `mail:attachmentCount`.",
+    "metadata": {}
+  },
+  {
+    "kind": 2,
+    "language": "sparql",
+    "value": "\nPREFIX mail: <https://mail.described.at/>\nPREFIX schema: <http://schema.org/>\n\nSELECT ?msg ?subject ?count ?date WHERE {\n  ?msg mail:attachmentCount ?count ;\n       mail:subject ?subject ;\n       schema:dateCreated ?date .\n}\nORDER BY DESC(?count)\nLIMIT 20",
     "metadata": {}
   }
 ]

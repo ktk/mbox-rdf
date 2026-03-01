@@ -45,8 +45,12 @@ impl Vocab {
         }
     }
 
-    pub fn address_iri(&self, email: &str) -> String {
-        format!("{}addr/{}", self.data_base, encode(&email.to_lowercase()))
+    pub fn account_iri(&self, email: &str) -> String {
+        format!("mailto:{}", email.to_lowercase())
+    }
+
+    pub fn thread_iri(&self, root_msg_id: &str) -> String {
+        format!("{}thread/{}", self.data_base, encode(root_msg_id))
     }
 
     pub fn folder_iri(&self, name: &str) -> String {

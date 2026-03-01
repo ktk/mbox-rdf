@@ -4,6 +4,7 @@
 /sample
 *.nt
 *.ttl
+!mail-shapes.ttl
 *.nq
 *.gz
 .DS_Store

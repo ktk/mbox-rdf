@@ -162,6 +162,9 @@ fn process_message<W: Write>(
     // Source Path
     add_literal_triple(&mut triples, &s, &vocab.term("sourcePath"), source_path, graph_iri);
 
+    // Message size (raw RFC822 bytes)
+    add_typed_literal_triple(&mut triples, &s, &vocab.term("size"), &raw_message.len().to_string(), vocab::XSD_INTEGER, graph_iri);
+
     // Subject
     if let Some(subject) = msg.subject() {
         add_literal_triple(&mut triples, &s, &vocab.term("subject"), subject, graph_iri);
@@ -189,19 +192,36 @@ fn process_message<W: Write>(
         _ => {}
     }
 
-    // References
+    // References + Thread computation
+    let thread_root_id: Option<String>;
     match msg.references() {
         HeaderValue::Text(id) => {
             let ref_iri = vocab.message_iri(Some(id.as_ref()), &[]);
             add_iri_triple(&mut triples, &s, &vocab.term("references"), &ref_iri, graph_iri);
+            thread_root_id = Some(id.to_string());
         }
         HeaderValue::TextList(ids) => {
             for id in ids {
                 let ref_iri = vocab.message_iri(Some(id.as_ref()), &[]);
                 add_iri_triple(&mut triples, &s, &vocab.term("references"), &ref_iri, graph_iri);
             }
+            // First entry in References is the thread root
+            thread_root_id = ids.first().map(|id| id.to_string());
         }
-        _ => {}
+        _ => {
+            thread_root_id = None;
+        }
+    }
+
+    // Thread: use first References entry as root, otherwise own message-id
+    let effective_thread_root = thread_root_id
+        .as_deref()
+        .or(msg_id)
+        .unwrap_or("");
+    if !effective_thread_root.is_empty() {
+        let thread_iri = vocab.thread_iri(effective_thread_root);
+        add_iri_triple(&mut triples, &s, &vocab.term("thread"), &thread_iri, graph_iri);
+        add_iri_triple(&mut triples, &thread_iri, vocab::RDF_TYPE, &vocab.term("Thread"), graph_iri);
     }
 
     // Mailing List Awareness
@@ -216,7 +236,7 @@ fn process_message<W: Write>(
         }
     }
 
-    // Date
+    // Date → schema:dateCreated
     if let Some(date) = msg.date() {
         let tz = if date.tz_hour == 0 && date.tz_minute == 0 {
             "Z".to_string()
@@ -226,7 +246,46 @@ fn process_message<W: Write>(
         };
         let date_str = format!("{:04}-{:02}-{:02}T{:02}:{:02}:{:02}{}", 
             date.year, date.month, date.day, date.hour, date.minute, date.second, tz);
-        add_typed_literal_triple(&mut triples, &s, &vocab.term("date"), &date_str, vocab::XSD_DATETIME, graph_iri);
+        add_typed_literal_triple(&mut triples, &s, &vocab.schema_term("dateCreated"), &date_str, vocab::XSD_DATETIME, graph_iri);
+    }
+
+    // schema:dateReceived (best-effort from Received header)
+    if let Some(HeaderValue::Received(received)) = msg.header_values("Received").next() {
+        if let Some(recv_date) = &received.date {
+            let tz = if recv_date.tz_hour == 0 && recv_date.tz_minute == 0 {
+                "Z".to_string()
+            } else {
+                let sign = if recv_date.tz_before_gmt { "-" } else { "+" };
+                format!("{}{:02}:{:02}", sign, recv_date.tz_hour, recv_date.tz_minute)
+            };
+            let recv_date_str = format!("{:04}-{:02}-{:02}T{:02}:{:02}:{:02}{}",
+                recv_date.year, recv_date.month, recv_date.day, recv_date.hour, recv_date.minute, recv_date.second, tz);
+            add_typed_literal_triple(&mut triples, &s, &vocab.schema_term("dateReceived"), &recv_date_str, vocab::XSD_DATETIME, graph_iri);
+        }
+    }
+
+    // Reply-To
+    if let Some(HeaderValue::Address(reply_to_addr)) = msg.header_values("Reply-To").next() {
+        match reply_to_addr {
+            Address::List(list) => {
+                for a in list {
+                    if let Some(email) = &a.address {
+                        let account_iri = vocab.account_iri(email);
+                        add_iri_triple(&mut triples, &s, &vocab.term("replyTo"), &account_iri, graph_iri);
+                    }
+                }
+            }
+            Address::Group(groups) => {
+                for g in groups {
+                    for a in &g.addresses {
+                        if let Some(email) = &a.address {
+                            let account_iri = vocab.account_iri(email);
+                            add_iri_triple(&mut triples, &s, &vocab.term("replyTo"), &account_iri, graph_iri);
+                        }
+                    }
+                }
+            }
+        }
     }
 
     // User-Agent / X-Mailer
@@ -236,7 +295,7 @@ fn process_message<W: Write>(
         add_literal_triple(&mut triples, &s, &vocab.term("userAgent"), ua.as_ref(), graph_iri);
     }
 
-    // Addresses
+    // Addresses (mail:Account with mailto: URIs)
     process_addresses(&mut triples, &s, &vocab.term("from"), msg.from(), vocab, graph_iri);
     process_addresses(&mut triples, &s, &vocab.term("to"), msg.to(), vocab, graph_iri);
     process_addresses(&mut triples, &s, &vocab.term("cc"), msg.cc(), vocab, graph_iri);
@@ -274,6 +333,7 @@ fn process_message<W: Write>(
     }
 
     // Attachments (schema:MediaObject)
+    let mut attachment_count = 0u32;
     for att in msg.attachments() {
         let mut hasher = Sha256::new();
         let content = match &att.body {
@@ -299,6 +359,12 @@ fn process_message<W: Write>(
         let ctype = att.content_type().map(|c| c.ctype()).unwrap_or("application/octet-stream");
         add_literal_triple(&mut triples, &att_iri, &vocab.schema_term("encodingFormat"), ctype, graph_iri);
         add_typed_literal_triple(&mut triples, &att_iri, &vocab.schema_term("contentSize"), &content_size.to_string(), vocab::XSD_INTEGER, graph_iri);
+        attachment_count += 1;
+    }
+
+    // Attachment count
+    if attachment_count > 0 {
+        add_typed_literal_triple(&mut triples, &s, &vocab.term("attachmentCount"), &attachment_count.to_string(), vocab::XSD_INTEGER, graph_iri);
     }
 
     // Serialize all triples/quads for this message
@@ -392,14 +458,13 @@ fn add_single_addr(
     graph_iri: Option<&str>,
 ) {
     if let Some(email) = &addr.address {
-        let addr_iri = vocab.address_iri(email);
+        let account_iri = vocab.account_iri(email);
         
-        add_iri_triple(triples, msg_s, predicate, &addr_iri, graph_iri);
-        add_iri_triple(triples, &addr_iri, vocab::RDF_TYPE, &vocab.term("Address"), graph_iri);
-        add_literal_triple(triples, &addr_iri, &vocab.term("addr"), email, graph_iri);
+        add_iri_triple(triples, msg_s, predicate, &account_iri, graph_iri);
+        add_iri_triple(triples, &account_iri, vocab::RDF_TYPE, &vocab.term("Account"), graph_iri);
         
         if let Some(name) = &addr.name {
-            add_literal_triple(triples, &addr_iri, &vocab.term("name"), name, graph_iri);
+            add_literal_triple(triples, &account_iri, &vocab.schema_term("name"), name, graph_iri);
         }
     }
 }
