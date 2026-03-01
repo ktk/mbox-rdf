@@ -10,15 +10,21 @@ pub fn generate_schema(vocab: &Vocab, output_path: &str) -> Result<()> {
     writeln!(f, "@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .")?;
     writeln!(f, "@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .")?;
     writeln!(f, "@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .")?;
+    writeln!(f, "@prefix schema: <{}> .", SCHEMA_ORG)?;
     writeln!(f, "@prefix mail: <{}> .", mail)?;
     writeln!(f)?;
 
     // Classes
-    write_class(&mut f, mail, "Message", "An email message")?;
+    write_class(&mut f, mail, "Message", "An email message (also a schema:CreativeWork)")?;
     write_class(&mut f, mail, "Mailbox", "A mailbox or folder containing messages")?;
     write_class(&mut f, mail, "Address", "An email address (optionally with a display name)")?;
-    write_class(&mut f, mail, "Attachment", "An email attachment metadata")?;
     write_class(&mut f, mail, "MailingList", "A mailing list or discussion group")?;
+
+    // Note: Attachments are typed as schema:MediaObject with schema.org properties
+    writeln!(f, "# Attachments use schema:MediaObject with properties:")?;
+    writeln!(f, "# schema:associatedMedia (Message -> schema:MediaObject)")?;
+    writeln!(f, "# schema:name, schema:encodingFormat, schema:sha256, schema:contentSize")?;
+    writeln!(f)?;
 
     // Properties
     write_property(&mut f, mail, "messageId", "Message", "xsd:string", "RFC 822 Message-ID")?;
@@ -35,15 +41,11 @@ pub fn generate_schema(vocab: &Vocab, output_path: &str) -> Result<()> {
     write_property(&mut f, mail, "bodyText", "Message", "xsd:string", "Textual body content")?;
     write_property(&mut f, mail, "folder", "Message", "mail:Mailbox", "Folder containing the message")?;
     write_property(&mut f, mail, "sourcePath", "Message", "xsd:string", "Local path to the source mbox file")?;
-    write_property(&mut f, mail, "hasAttachment", "Message", "mail:Attachment", "Link to attachment")?;
     write_property(&mut f, mail, "inReplyTo", "Message", "mail:Message", "Parent message this is a reply to")?;
     write_property(&mut f, mail, "references", "Message", "mail:Message", "Ancestor messages in the same thread")?;
     write_property(&mut f, mail, "belongsToList", "Message", "mail:MailingList", "The mailing list this message belongs to")?;
     write_property(&mut f, mail, "addr", "Address", "xsd:string", "Email address string")?;
     write_property(&mut f, mail, "name", "Address", "xsd:string", "Display name")?;
-    write_property(&mut f, mail, "hash", "Attachment", "xsd:string", "SHA-256 hash of the content")?;
-    write_property(&mut f, mail, "filename", "Attachment", "xsd:string", "Attachment filename")?;
-    write_property(&mut f, mail, "contentType", "Attachment", "xsd:string", "MIME content type")?;
     write_property(&mut f, mail, "listId", "MailingList", "xsd:string", "Mailing list identifier")?;
     write_property(&mut f, mail, "listArchive", "MailingList", "xsd:anyURI", "URL of the mailing list archive")?;
 

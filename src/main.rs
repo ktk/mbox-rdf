@@ -152,8 +152,9 @@ fn process_message<W: Write>(
     let mut triples = Vec::new();
     let s = msg_iri_str.clone();
 
-    // Type: Message
+    // Type: Message + schema:CreativeWork
     add_iri_triple(&mut triples, &s, vocab::RDF_TYPE, &vocab.term("Message"), graph_iri);
+    add_iri_triple(&mut triples, &s, vocab::RDF_TYPE, &vocab.schema_term("CreativeWork"), graph_iri);
 
     // Folder
     add_iri_triple(&mut triples, &s, &vocab.term("folder"), folder_iri_str, graph_iri);
@@ -272,7 +273,7 @@ fn process_message<W: Write>(
         */
     }
 
-    // Attachments
+    // Attachments (schema:MediaObject)
     for att in msg.attachments() {
         let mut hasher = Sha256::new();
         let content = match &att.body {
@@ -284,18 +285,20 @@ fn process_message<W: Write>(
         };
         hasher.update(content);
         let hash = format!("{:x}", hasher.finalize());
+        let content_size = content.len();
         
         let att_iri = vocab.attachment_iri(&hash);
-        add_iri_triple(&mut triples, &s, &vocab.term("hasAttachment"), &att_iri, graph_iri);
-        add_iri_triple(&mut triples, &att_iri, vocab::RDF_TYPE, &vocab.term("Attachment"), graph_iri);
-        add_literal_triple(&mut triples, &att_iri, &vocab.term("hash"), &hash, graph_iri);
+        add_iri_triple(&mut triples, &s, &vocab.schema_term("associatedMedia"), &att_iri, graph_iri);
+        add_iri_triple(&mut triples, &att_iri, vocab::RDF_TYPE, &vocab.schema_term("MediaObject"), graph_iri);
+        add_literal_triple(&mut triples, &att_iri, &vocab.schema_term("sha256"), &hash, graph_iri);
         
         if let Some(filename) = att.attachment_name() {
-             add_literal_triple(&mut triples, &att_iri, &vocab.term("filename"), filename, graph_iri);
+             add_literal_triple(&mut triples, &att_iri, &vocab.schema_term("name"), filename, graph_iri);
         }
         
         let ctype = att.content_type().map(|c| c.ctype()).unwrap_or("application/octet-stream");
-        add_literal_triple(&mut triples, &att_iri, &vocab.term("contentType"), ctype, graph_iri);
+        add_literal_triple(&mut triples, &att_iri, &vocab.schema_term("encodingFormat"), ctype, graph_iri);
+        add_typed_literal_triple(&mut triples, &att_iri, &vocab.schema_term("contentSize"), &content_size.to_string(), vocab::XSD_INTEGER, graph_iri);
     }
 
     // Serialize all triples/quads for this message

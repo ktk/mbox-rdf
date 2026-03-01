@@ -3,8 +3,10 @@ use sha2::{Sha256, Digest};
 
 pub const DEFAULT_SCHEMA_IRI: &str = "https://mail.described.at/";
 pub const DEFAULT_DATA_IRI: &str = "https://example.org/data/";
+pub const SCHEMA_ORG: &str = "http://schema.org/";
 
 pub const XSD_DATETIME: &str = "http://www.w3.org/2001/XMLSchema#dateTime";
+pub const XSD_INTEGER: &str = "http://www.w3.org/2001/XMLSchema#integer";
 pub const XSD_STRING: &str = "http://www.w3.org/2001/XMLSchema#string";
 pub const RDF_TYPE: &str = "http://www.w3.org/1999/02/22-rdf-syntax-ns#type";
 pub const RDFS_LABEL: &str = "http://www.w3.org/2000/01/rdf-schema#label";
@@ -65,5 +67,9 @@ impl Vocab {
 
     pub fn term(&self, local_name: &str) -> String {
         format!("{}{}", self.schema_base, local_name)
+    }
+
+    pub fn schema_term(&self, local_name: &str) -> String {
+        format!("{}{}", SCHEMA_ORG, local_name)
     }
 }
