@@ -91,6 +91,12 @@ qlever index  # Indexes the generated .nq.gz files
 qlever start  # Starts the SPARQL endpoint
 ```
 
+## Roadmap
+
+- [ ] **Incremental sync** — track the last processed byte offset per mbox file (stored in QLever as RDF), process only new messages, and INSERT DATA via SPARQL UPDATE. Full reindex is fast enough as a fallback.
+- [ ] **Text search** — implement QLever materialized views with `ql:has-word` for ranked keyword search over subjects (weight 5) and body text (weight 1). Waiting on [QLever PR #2579](https://github.com/ad-freiburg/qlever/pull/2579).
+- [ ] **URL extraction** — re-enable `mail:linksTo` by parsing `<a href>` from HTML parts instead of regex on plain text.
+
 ## License
 
 This project is licensed under the MIT License.
