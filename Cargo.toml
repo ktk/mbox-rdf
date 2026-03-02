@@ -9,7 +9,6 @@ chrono = "0.4.43"
 clap = { version = "4.5.58", features = ["derive"] }
 itertools = "0.14.0"
 mail-parser = "0.11.2"
-mbox-reader = "0.2.0"
 sha2 = "0.10.9"
 sophia_api = "0.9.0"
 sophia_turtle = "0.9.0"

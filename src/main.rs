@@ -1,8 +1,9 @@
 mod vocab;
+mod mbox;
 
 use anyhow::{Context, Result};
 use clap::Parser;
-use mbox_reader::MboxFile;
+use mbox::MboxFile;
 use mail_parser::{MessageParser, Address, Addr, MimeHeaders, HeaderValue};
 use std::fs::File;
 use std::io::{BufWriter, Write};
@@ -97,18 +98,17 @@ fn main() -> Result<()> {
                 }
             }
 
-            if let Some(raw_message) = entry.message() {
-                match process_message(&vocab, raw_message, &folder_iri_str, &absolute_input_path, args.include_body, args.graph_iri.as_deref(), &mut writer) {
-                    Ok(_) => {
-                        total_processed += 1;
-                        if total_processed % 100 == 0 {
-                            println!("Processed {} messages...", total_processed);
-                        }
+            let raw_message = entry.message();
+            match process_message(&vocab, raw_message, &folder_iri_str, &absolute_input_path, args.include_body, args.graph_iri.as_deref(), &mut writer) {
+                Ok(_) => {
+                    total_processed += 1;
+                    if total_processed % 100 == 0 {
+                        println!("Processed {} messages...", total_processed);
                     }
-                    Err(e) => {
-                        eprintln!("Error processing message {} in {}: {}", total_processed + total_failed, input_path, e);
-                        total_failed += 1;
-                    }
+                }
+                Err(e) => {
+                    eprintln!("Error processing message {} in {}: {}", total_processed + total_failed, input_path, e);
+                    total_failed += 1;
                 }
             }
         }
