@@ -20,3 +20,4 @@
 qlever/mbox.*
 Cargo.lock
 convert_all.sh
+IMAP_SYNC_PLAN.md
