@@ -22,6 +22,8 @@ mail:MailingList rdf:type rdfs:Class ;
 # Attachments use schema:MediaObject with properties:
 # schema:associatedMedia (Message -> schema:MediaObject)
 # schema:name, schema:encodingFormat, schema:sha256, schema:contentSize
+# schema:text (text attachment body, only if --include-attachments)
+# schema:contentUrl (binary attachment body as data URI, only if --include-attachments)
 
 # Dates use schema:dateCreated and schema:dateReceived
 # Display names use schema:name

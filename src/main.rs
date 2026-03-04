@@ -11,6 +11,7 @@ use std::path::Path;
 use flate2::write::GzEncoder;
 use flate2::Compression;
 use sha2::{Sha256, Digest};
+use base64::Engine;
 use vocab::{Vocab, DEFAULT_DATA_IRI, DEFAULT_SCHEMA_IRI};
 use regex::Regex;
 use std::sync::OnceLock;
@@ -41,6 +42,14 @@ struct Args {
     /// Include body text
     #[arg(long, default_value_t = false)]
     include_body: bool,
+
+    /// Include attachment body content
+    #[arg(long, default_value_t = false)]
+    include_attachments: bool,
+
+    /// Max attachment size (bytes) to include body for (requires --include-attachments)
+    #[arg(long)]
+    max_attachment_size: Option<usize>,
 
     /// Folder name override (default: derived from filename)
     #[arg(long)]
@@ -99,7 +108,7 @@ fn main() -> Result<()> {
             }
 
             let raw_message = entry.message();
-            match process_message(&vocab, raw_message, &folder_iri_str, &absolute_input_path, args.include_body, args.graph_iri.as_deref(), &mut writer) {
+            match process_message(&vocab, raw_message, &folder_iri_str, &absolute_input_path, args.include_body, args.include_attachments, args.max_attachment_size, args.graph_iri.as_deref(), &mut writer) {
                 Ok(_) => {
                     total_processed += 1;
                     if total_processed % 100 == 0 {
@@ -126,6 +135,8 @@ fn process_message<W: Write>(
     folder_iri_str: &str,
     source_path: &str,
     include_body: bool,
+    include_attachments: bool,
+    max_attachment_size: Option<usize>,
     graph_iri: Option<&str>,
     writer: &mut W,
 ) -> Result<()> {
@@ -345,6 +356,22 @@ fn process_message<W: Write>(
         let ctype = att.content_type().map(|c| c.ctype()).unwrap_or("application/octet-stream");
         add_literal_triple(&mut triples, &att_iri, &vocab.schema_term("encodingFormat"), ctype, graph_iri);
         add_typed_literal_triple(&mut triples, &att_iri, &vocab.schema_term("contentSize"), &content_size.to_string(), vocab::XSD_INTEGER, graph_iri);
+
+        if include_attachments {
+            let under_cap = max_attachment_size.map_or(true, |max| content_size <= max);
+            if under_cap {
+                if ctype.starts_with("text/") {
+                    if let Ok(text) = std::str::from_utf8(content) {
+                        add_literal_triple(&mut triples, &att_iri, &vocab.schema_term("text"), text, graph_iri);
+                    }
+                } else {
+                    let b64 = base64::engine::general_purpose::STANDARD.encode(content);
+                    let data_uri = format!("data:{};base64,{}", ctype, b64);
+                    add_literal_triple(&mut triples, &att_iri, &vocab.schema_term("contentUrl"), &data_uri, graph_iri);
+                }
+            }
+        }
+
         attachment_count += 1;
     }
 
