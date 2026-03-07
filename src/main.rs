@@ -42,6 +42,18 @@ struct Args {
     #[arg(long, default_value_t = false)]
     include_body: bool,
 
+    /// Include attachment body content (text as literals, binary as local files)
+    #[arg(long, default_value_t = false)]
+    include_attachments: bool,
+
+    /// Max attachment size (bytes) to include body for (requires --include-attachments)
+    #[arg(long)]
+    max_attachment_size: Option<usize>,
+
+    /// Directory to write extracted attachment files (default: attachments/)
+    #[arg(long, default_value = "attachments")]
+    attachment_dir: String,
+
     /// Folder name override (default: derived from filename)
     #[arg(long)]
     folder_name: Option<String>,
@@ -54,6 +66,12 @@ struct Args {
 fn main() -> Result<()> {
     let args = Args::parse();
     let vocab = Vocab::new(DEFAULT_SCHEMA_IRI.to_string(), args.data_iri);
+
+    // Create attachment directory if needed
+    if args.include_attachments {
+        std::fs::create_dir_all(&args.attachment_dir)
+            .with_context(|| format!("Failed to create attachment directory {}", args.attachment_dir))?;
+    }
 
     let out_file = File::create(&args.output)
         .with_context(|| format!("Failed to create output file {}", args.output))?;
@@ -99,7 +117,12 @@ fn main() -> Result<()> {
             }
 
             let raw_message = entry.message();
-            match process_message(&vocab, raw_message, &folder_iri_str, &absolute_input_path, args.include_body, args.graph_iri.as_deref(), &mut writer) {
+            let att_opts = if args.include_attachments {
+                Some(AttachmentOpts { max_size: args.max_attachment_size, dir: &args.attachment_dir })
+            } else {
+                None
+            };
+            match process_message(&vocab, raw_message, &folder_iri_str, &absolute_input_path, args.include_body, att_opts.as_ref(), args.graph_iri.as_deref(), &mut writer) {
                 Ok(_) => {
                     total_processed += 1;
                     if total_processed % 100 == 0 {
@@ -120,12 +143,18 @@ fn main() -> Result<()> {
     Ok(())
 }
 
+struct AttachmentOpts<'a> {
+    max_size: Option<usize>,
+    dir: &'a str,
+}
+
 fn process_message<W: Write>(
     vocab: &Vocab,
     raw_message: &[u8],
     folder_iri_str: &str,
     source_path: &str,
     include_body: bool,
+    attachment_opts: Option<&AttachmentOpts>,
     graph_iri: Option<&str>,
     writer: &mut W,
 ) -> Result<()> {
@@ -345,6 +374,33 @@ fn process_message<W: Write>(
         let ctype = att.content_type().map(|c| c.ctype()).unwrap_or("application/octet-stream");
         add_literal_triple(&mut triples, &att_iri, &vocab.schema_term("encodingFormat"), ctype, graph_iri);
         add_typed_literal_triple(&mut triples, &att_iri, &vocab.schema_term("contentSize"), &content_size.to_string(), vocab::XSD_INTEGER, graph_iri);
+
+        // Include attachment content if requested
+        if let Some(opts) = attachment_opts {
+            let under_cap = opts.max_size.map_or(true, |max| content_size <= max);
+            if under_cap && content_size > 0 {
+                if ctype.starts_with("text/") {
+                    // Text attachments: store inline as schema:text
+                    if let Ok(text) = std::str::from_utf8(content) {
+                        add_literal_triple(&mut triples, &att_iri, &vocab.schema_term("text"), text, graph_iri);
+                    }
+                } else {
+                    // Binary attachments: write to file, reference via schema:contentUrl
+                    let ext = att.attachment_name()
+                        .and_then(|n| n.rsplit('.').next())
+                        .unwrap_or("bin");
+                    let filename = format!("{}.{}", hash, ext);
+                    let filepath = Path::new(opts.dir).join(&filename);
+                    if !filepath.exists() {
+                        std::fs::write(&filepath, content)
+                            .with_context(|| format!("Failed to write attachment {}", filepath.display()))?;
+                    }
+                    let url = format!("file://{}", filepath.canonicalize().unwrap_or(filepath.clone()).display());
+                    add_literal_triple(&mut triples, &att_iri, &vocab.schema_term("contentUrl"), &url, graph_iri);
+                }
+            }
+        }
+
         attachment_count += 1;
     }
 

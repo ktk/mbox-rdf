@@ -243,4 +243,16 @@ mail:MediaObjectShape a sh:NodeShape ;
     sh:datatype xsd:integer ;
     sh:maxCount 1 ;
     sh:description "Size in bytes" ;
+  ] ;
+  sh:property [
+    sh:path schema:text ;
+    sh:datatype xsd:string ;
+    sh:maxCount 1 ;
+    sh:description "Text attachment body content (only with --include-attachments, text/* MIME types)" ;
+  ] ;
+  sh:property [
+    sh:path schema:contentUrl ;
+    sh:datatype xsd:string ;
+    sh:maxCount 1 ;
+    sh:description "File URL to extracted binary attachment (only with --include-attachments, non-text MIME types)" ;
   ] .
