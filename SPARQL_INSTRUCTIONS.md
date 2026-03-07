@@ -98,6 +98,8 @@ Attachment IRI is content-addressable: `<data:.../attachment/sha256/{hash}>`.
 | `schema:encodingFormat` | `xsd:string` | 1 | MIME type |
 | `schema:name` | `xsd:string` | 0..1 | Filename |
 | `schema:contentSize` | `xsd:integer` | 0..1 | Size in bytes |
+| `schema:text` | `xsd:string` | 0..1 | Text attachment body (only if `--include-attachments` enabled, `text/*` MIME types) |
+| `schema:contentUrl` | `xsd:string` | 0..1 | Binary attachment body as base64 data URI (only if `--include-attachments` enabled, non-text MIME types) |
 
 ## Common Query Patterns
 

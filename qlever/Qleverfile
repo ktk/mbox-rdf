@@ -12,6 +12,7 @@ FORMAT           = nq
 INPUT_FILES     = *.nq.gz
 CAT_INPUT_FILES = gzip -dc ${INPUT_FILES}
 SETTINGS_JSON   = { "num-triples-per-batch": 1000000 }
+PARSER_BUFFER_SIZE = 100M
 TEXT_INDEX      = from_literals
 
 [server]
