@@ -13,6 +13,7 @@ Currently, the tool operates on local mbox files (such as those used by Thunderb
 - **Extremely Fast**: Capable of converting multi-GB mailboxes in a matter of seconds or minutes.
 - **Streaming Architecture**: Designed to handle archives of any size with minimal memory footprint.
 - **Gzip & N-Quads**: Native support for compressed output and named graphs for multi-account analysis.
+- **Attachment Extraction**: Text attachments stored inline, binary attachments written to content-addressed files.
 - **Timezone Aware**: Accurate `xsd:dateTime` literals preserving original sender offsets.
 - **Schema.org Aligned**: Uses `schema:CreativeWork`, `schema:MediaObject`, `schema:dateCreated`, and `schema:name` for interoperability.
 - **SHACL Shapes**: Includes `mail-shapes.ttl` for validation and documentation.
@@ -35,16 +36,31 @@ cargo run --release -- path/to/INBOX \
   --output mail.nq.gz
 ```
 
+### With attachment extraction
+
+```bash
+cargo run --release -- path/to/INBOX \
+  --include-attachments \
+  --max-attachment-size 1048576 \
+  --attachment-dir ./attachments \
+  --output mail.nq.gz
+```
+
+Text attachments (`text/*`) are stored inline as `schema:text` literals. Binary attachments are written to `{attachment-dir}/{sha256}.{ext}` and referenced via `schema:contentUrl`.
+
 ### Options
 
 ```
--o, --output       Output path (.nt or .nq, optionally .gz) [default: mail.nt]
-    --data-iri     Base IRI for instance data [default: https://example.org/data/]
-    --graph-iri    Optional Graph IRI (enables N-Quads)
-    --gzip         Force Gzip compression
-    --include-body Include body text
-    --folder-name  Folder name override (default: derived from filename)
-    --limit        Limit number of messages to process
+-o, --output              Output path (.nt or .nq, optionally .gz) [default: mail.nt]
+    --data-iri            Base IRI for instance data [default: https://example.org/data/]
+    --graph-iri           Optional Graph IRI (enables N-Quads)
+    --gzip                Force Gzip compression
+    --include-body        Include body text
+    --include-attachments Include attachment content (text inline, binary to files)
+    --max-attachment-size  Max attachment size in bytes to include
+    --attachment-dir      Directory for extracted attachments [default: attachments]
+    --folder-name         Folder name override (default: derived from filename)
+    --limit               Limit number of messages to process
 ```
 
 ## Vocabulary
@@ -55,7 +71,7 @@ The schema namespace is `https://mail.described.at/`. Key concepts:
 - **`mail:Account`**: Email accounts, identified by `mailto:` URIs (e.g., `<mailto:alice@example.com>`).
 - **`mail:Thread`**: Conversation threads, derived from the `References` header chain.
 - **`mail:MailingList`**: Mailing lists with `mail:listId`.
-- **`schema:MediaObject`**: File attachments with `schema:sha256`, `schema:encodingFormat`, `schema:name`.
+- **`schema:MediaObject`**: File attachments with `schema:sha256`, `schema:encodingFormat`, `schema:name`, `schema:text`, `schema:contentUrl`.
 
 Dates use `schema:dateCreated` and `schema:dateReceived`. Display names use `schema:name`.
 
