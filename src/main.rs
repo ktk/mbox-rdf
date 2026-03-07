@@ -504,6 +504,7 @@ fn add_single_addr(
         
         add_iri_triple(triples, msg_s, predicate, &account_iri, graph_iri);
         add_iri_triple(triples, &account_iri, vocab::RDF_TYPE, &vocab.term("Account"), graph_iri);
+        add_literal_triple(triples, &account_iri, &vocab.schema_term("email"), email, graph_iri);
         
         if let Some(name) = &addr.name {
             add_literal_triple(triples, &account_iri, &vocab.schema_term("name"), name, graph_iri);

@@ -160,6 +160,12 @@ mail:AccountShape a sh:NodeShape ;
     sh:hasValue mail:Account ;
     sh:minCount 1 ;
   ] ;
+  sh:property [
+    sh:path schema:email ;
+    sh:datatype xsd:string ;
+    sh:minCount 1 ; sh:maxCount 1 ;
+    sh:description "Plain email address string (without mailto: prefix)" ;
+  ] ;
   # Optional
   sh:property [
     sh:path schema:name ;

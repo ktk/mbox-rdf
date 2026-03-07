@@ -57,13 +57,12 @@ An email message. Every message also has type `schema:CreativeWork`.
 
 An email account, **identified by its `mailto:` URI**. Example: `<mailto:alice@example.com>`.
 
-The email address is the URI itself — there is no separate address property.
-
 | Property | Type | Card. | Description |
 |----------|------|-------|-------------|
+| `schema:email` | `xsd:string` | 1 | Plain email address (e.g., `alice@example.com`) |
 | `schema:name` | `xsd:string` | 0..1 | Display name |
 
-**To extract the email address as a string, use `STR(?account)` and strip the `mailto:` prefix:**
+**The `mailto:` IRI is the subject; `schema:email` provides the plain address string for convenience:**
 
 ```sparql
 BIND(REPLACE(STR(?account), "^mailto:", "") AS ?email)
