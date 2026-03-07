@@ -1,14 +1,15 @@
 PREFIX mail: <https://mail.described.at/>
 PREFIX schema: <http://schema.org/>
 
-SELECT ?account (SAMPLE(?name) AS ?displayName) (COUNT(DISTINCT ?g) AS ?accountsAppearingIn) (COUNT(?msg) AS ?totalMessages) WHERE {
+SELECT ?email (SAMPLE(?name) AS ?displayName) (COUNT(DISTINCT ?g) AS ?accountsAppearingIn) (COUNT(?msg) AS ?totalMessages) WHERE {
   GRAPH ?g {
     ?msg mail:from|mail:to|mail:cc ?account .
-    ?account a mail:Account .
+    ?account a mail:Account ;
+             schema:email ?email .
     OPTIONAL { ?account schema:name ?name }
   }
 }
-GROUP BY ?account
+GROUP BY ?email
 HAVING (?accountsAppearingIn > 1)
 ORDER BY DESC(?accountsAppearingIn)
 LIMIT 20

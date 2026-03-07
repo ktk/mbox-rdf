@@ -2,13 +2,14 @@ PREFIX mail: <https://mail.described.at/>
 PREFIX schema: <http://schema.org/>
 PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
 
-SELECT ?msg ?from ?subject ?date
+SELECT ?msg ?email ?subject ?date
 WHERE {
   ?msg mail:from ?from ;
        mail:subject ?subject ;
        schema:dateCreated ?date .
+  ?from schema:email ?email .
   
-  FILTER(CONTAINS(STR(?from), "@example.org"))
+  FILTER(CONTAINS(?email, "@bit42.ch"))
   FILTER(?date >= "2024-01-01T00:00:00Z"^^xsd:dateTime && ?date <= "2024-12-31T23:59:59Z"^^xsd:dateTime)
 }
 ORDER BY DESC(?date)

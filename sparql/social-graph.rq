@@ -1,11 +1,13 @@
 PREFIX mail: <https://mail.described.at/>
 PREFIX schema: <http://schema.org/>
 
-SELECT ?sender ?recipient (COUNT(?msg) AS ?msgCount) WHERE {
+SELECT ?senderEmail ?recipientEmail (COUNT(?msg) AS ?msgCount) WHERE {
   ?msg mail:from ?sender ;
        mail:to ?recipient .
+  ?sender schema:email ?senderEmail .
+  ?recipient schema:email ?recipientEmail .
   FILTER(?sender != ?recipient)
 }
-GROUP BY ?sender ?recipient
+GROUP BY ?senderEmail ?recipientEmail
 ORDER BY DESC(?msgCount)
 LIMIT 30

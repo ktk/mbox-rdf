@@ -1,8 +1,9 @@
 PREFIX mail: <https://mail.described.at/>
 PREFIX schema: <http://schema.org/>
 
-SELECT DISTINCT ?account ?name (COUNT(?msg) AS ?ccCount) WHERE {
+SELECT DISTINCT ?email ?name (COUNT(?msg) AS ?ccCount) WHERE {
   ?msg mail:cc ?account .
+  ?account schema:email ?email .
   OPTIONAL { ?account schema:name ?name }
   
   # Never sent an email
@@ -10,6 +11,6 @@ SELECT DISTINCT ?account ?name (COUNT(?msg) AS ?ccCount) WHERE {
   # Never a primary recipient
   FILTER NOT EXISTS { ?msgTo mail:to ?account }
 }
-GROUP BY ?account ?name
+GROUP BY ?email ?name
 ORDER BY DESC(?ccCount)
 LIMIT 10
