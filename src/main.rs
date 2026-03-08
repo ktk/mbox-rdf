@@ -1,8 +1,11 @@
 mod vocab;
 mod mbox;
+mod config;
+mod discover;
+mod convert;
 
 use anyhow::{Context, Result};
-use clap::Parser;
+use clap::{Parser, Subcommand, CommandFactory};
 use mbox::MboxFile;
 use mail_parser::{MessageParser, Address, Addr, MimeHeaders, HeaderValue};
 use std::fs::File;
@@ -17,9 +20,26 @@ use std::sync::OnceLock;
 
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
-struct Args {
+struct Cli {
+    #[command(subcommand)]
+    command: Option<Commands>,
+
+    #[command(flatten)]
+    legacy: LegacyArgs,
+}
+
+#[derive(Subcommand, Debug)]
+enum Commands {
+    /// Discover Thunderbird profiles and generate mbox-config.toml
+    Discover(discover::DiscoverArgs),
+    /// Convert multiple accounts using mbox-config.toml
+    Convert(convert::ConvertArgs),
+}
+
+#[derive(clap::Args, Debug)]
+struct LegacyArgs {
     /// Input mbox file(s)
-    #[arg(required = true)]
+    #[arg()]
     inputs: Vec<String>,
 
     /// Output path for RDF data (.nt or .nq, optionally .gz)
@@ -64,7 +84,22 @@ struct Args {
 }
 
 fn main() -> Result<()> {
-    let args = Args::parse();
+    let cli = Cli::parse();
+
+    if let Some(cmd) = cli.command {
+        match cmd {
+            Commands::Discover(args) => return discover::run(args),
+            Commands::Convert(args) => return convert::run(args),
+        }
+    }
+
+    let args = cli.legacy;
+    if args.inputs.is_empty() {
+        Cli::command().print_help()?;
+        println!();
+        return Ok(());
+    }
+
     let vocab = Vocab::new(DEFAULT_SCHEMA_IRI.to_string(), args.data_iri);
 
     // Create attachment directory if needed
@@ -98,43 +133,26 @@ fn main() -> Result<()> {
                 .unwrap_or("unknown")
                 .to_string()
         });
-        let folder_iri_str = vocab.folder_iri(&folder_name);
         
-        let absolute_input_path = path.canonicalize()
-            .map(|p| p.to_string_lossy().into_owned())
-            .unwrap_or_else(|_| input_path.clone());
+        let att_opts = if args.include_attachments {
+            Some(AttachmentOpts { max_size: args.max_attachment_size, dir: &args.attachment_dir })
+        } else {
+            None
+        };
 
-        println!("Processing folder: {} ({})", folder_name, input_path);
-
-        let mbox = MboxFile::from_file(Path::new(input_path))
-            .with_context(|| format!("Failed to open mbox file {}", input_path))?;
-
-        for entry in mbox.iter() {
-            if let Some(limit) = args.limit {
-                if total_processed >= limit {
-                    break;
-                }
-            }
-
-            let raw_message = entry.message();
-            let att_opts = if args.include_attachments {
-                Some(AttachmentOpts { max_size: args.max_attachment_size, dir: &args.attachment_dir })
-            } else {
-                None
-            };
-            match process_message(&vocab, raw_message, &folder_iri_str, &absolute_input_path, args.include_body, att_opts.as_ref(), args.graph_iri.as_deref(), &mut writer) {
-                Ok(_) => {
-                    total_processed += 1;
-                    if total_processed % 100 == 0 {
-                        println!("Processed {} messages...", total_processed);
-                    }
-                }
-                Err(e) => {
-                    eprintln!("Error processing message {} in {}: {}", total_processed + total_failed, input_path, e);
-                    total_failed += 1;
-                }
-            }
-        }
+        let (processed, failed) = process_mbox_file(
+            path,
+            &folder_name,
+            args.limit,
+            args.include_body,
+            att_opts.as_ref(), // Pass ref to Option
+            args.graph_iri.as_deref(),
+            &vocab,
+            &mut writer,
+        )?;
+        
+        total_processed += processed;
+        total_failed += failed;
     }
 
     writer.flush()?;
@@ -143,12 +161,64 @@ fn main() -> Result<()> {
     Ok(())
 }
 
-struct AttachmentOpts<'a> {
-    max_size: Option<usize>,
-    dir: &'a str,
+pub(crate) fn process_mbox_file(
+    path: &Path,
+    folder_name: &str,
+    limit: Option<usize>,
+    include_body: bool,
+    att_opts: Option<&AttachmentOpts>,
+    graph_iri: Option<&str>,
+    vocab: &Vocab,
+    writer: &mut dyn Write,
+) -> Result<(usize, usize)> {
+    let mut processed = 0;
+    let mut failed = 0;
+    
+    let folder_iri_str = vocab.folder_iri(folder_name);
+    let absolute_input_path = path.canonicalize()
+        .map(|p| p.to_string_lossy().into_owned())
+        .unwrap_or_else(|_| path.to_string_lossy().into_owned());
+
+    println!("Processing folder: {} ({})", folder_name, path.display());
+
+    let mbox = MboxFile::from_file(path)
+        .with_context(|| format!("Failed to open mbox file {}", path.display()))?;
+
+    for entry in mbox.iter() {
+        if let Some(l) = limit {
+            if processed >= l {
+                break;
+            }
+        }
+
+        let raw_message = entry.message();
+        
+        let att_opts_val = att_opts.cloned();
+        
+        match process_message(vocab, raw_message, &folder_iri_str, &absolute_input_path, include_body, att_opts_val.as_ref(), graph_iri, writer) {
+            Ok(_) => {
+                processed += 1;
+                if processed % 100 == 0 {
+                    println!("Processed {} messages...", processed);
+                }
+            }
+            Err(e) => {
+                eprintln!("Error processing message {} in {}: {}", processed + failed, path.display(), e);
+                failed += 1;
+            }
+        }
+    }
+    
+    Ok((processed, failed))
 }
 
-fn process_message<W: Write>(
+#[derive(Clone)]
+pub(crate) struct AttachmentOpts<'a> {
+    pub max_size: Option<usize>,
+    pub dir: &'a str,
+}
+
+fn process_message<W: Write + ?Sized>(
     vocab: &Vocab,
     raw_message: &[u8],
     folder_iri_str: &str,
