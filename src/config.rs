@@ -11,18 +11,13 @@ pub struct Settings {
     pub output_dir: String,
     pub qlever_dir: Option<String>,
     pub compress: bool,
-    #[serde(default = "default_data_iri")]
-    pub data_iri: String,
-}
-
-fn default_data_iri() -> String {
-    "urn:mbox:".to_string()
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct AccountConfig {
     pub email: String,
     pub graph: String,
+    pub data_iri: String,
     
     // Feature toggles
     #[serde(default)]

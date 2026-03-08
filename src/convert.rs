@@ -62,7 +62,7 @@ pub fn run(args: ConvertArgs) -> Result<()> {
         total_accounts_processed += 1;
         println!("\n▶️ Processing account: {} ({})", acc_config.email, acc_config.graph);
 
-        let vocab = Vocab::new(DEFAULT_SCHEMA_IRI.to_string(), config.settings.data_iri.clone());
+        let vocab = Vocab::new(DEFAULT_SCHEMA_IRI.to_string(), acc_config.data_iri.clone());
 
         for folder in &acc_config.folders {
             if !folder.include {

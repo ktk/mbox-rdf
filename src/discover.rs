@@ -322,9 +322,11 @@ pub fn run(args: DiscoverArgs) -> Result<()> {
 
             if !mapped_folders.is_empty() {
                 total_accounts += 1;
+                let domain = email.split('@').nth(1).unwrap_or("example.org");
                 config_accounts.insert(account_key, AccountConfig {
                     email: email.clone(),
                     graph: format!("urn:email:{}", email),
+                    data_iri: format!("https://data.{}/", domain),
                     include_body: false,
                     include_attachments: false,
                     max_attachment_size: None,
@@ -341,7 +343,6 @@ pub fn run(args: DiscoverArgs) -> Result<()> {
             output_dir: "qlever".to_string(),
             qlever_dir: Some("qlever".to_string()),
             compress: true,
-            data_iri: "urn:mbox:".to_string(),
         },
         accounts: config_accounts,
     };
