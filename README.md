@@ -20,14 +20,50 @@ Currently, the tool operates on local mbox files (such as those used by Thunderb
 
 ## Usage
 
-### Basic conversion
+### 🆕 Recommended Workflow: Config-Driven Conversion
+
+The easiest way to map a full Thunderbird profile is through the configuration-driven workflow.
+
+**1. Discover Accounts**
+```bash
+cargo run --release -- discover
+```
+This scans your local Thunderbird profile, reads `prefs.js` to map local paths to email identities, and generates an `mbox-config.toml` file.
+
+**2. Configure Extraction**
+Open `mbox-config.toml` to customize your extraction. You can enable full-text bodies or file attachments per-account:
+```toml
+[accounts."alice@example.com"]
+email = "alice@example.com"
+graph = "urn:email:alice@example.com"
+data_iri = "https://data.example.com/"
+include_body = true
+include_attachments = true
+attachment_dir = "attachments"
+
+[[accounts."alice@example.com".folders]]
+name = "INBOX"
+path = "/path/to/thunderbird/ImapMail/mail.example.com/INBOX"
+include = true
+```
+
+**3. Convert**
+```bash
+cargo run --release -- convert
+```
+This processes all `include = true` folders in parallel, creating isolated `.nq.gz` files per folder. By default, if a `qlever_dir` is defined in settings, it will automatically restart and re-index your QLever SPARQL endpoint with the new data.
+
+---
+
+### Legacy Workflow: Single File Conversion
+
+If you want to manually pipe a single `.mbox` file to RDF, you can use the legacy conversion mode:
 
 ```bash
 cargo run --release -- path/to/INBOX --output mail.nt
 ```
 
-### Advanced usage (N-Quads + Gzip)
-
+**Advanced usage (N-Quads + Gzip):**
 ```bash
 cargo run --release -- path/to/INBOX \
   --data-iri https://example.org/data/ \
@@ -36,8 +72,7 @@ cargo run --release -- path/to/INBOX \
   --output mail.nq.gz
 ```
 
-### With attachment extraction
-
+**With attachment extraction:**
 ```bash
 cargo run --release -- path/to/INBOX \
   --include-attachments \
@@ -48,11 +83,10 @@ cargo run --release -- path/to/INBOX \
 
 Text attachments (`text/*`) are stored inline as `schema:text` literals. Binary attachments are written to `{attachment-dir}/{sha256}.{ext}` and referenced via `schema:contentUrl`.
 
-### Options
-
+**Single-file Options:**
 ```
 -o, --output              Output path (.nt or .nq, optionally .gz) [default: mail.nt]
-    --data-iri            Base IRI for instance data [default: https://example.org/data/]
+    --data-iri            Base IRI for instance data [default: urn:mbox:]
     --graph-iri           Optional Graph IRI (enables N-Quads)
     --gzip                Force Gzip compression
     --include-body        Include body text
