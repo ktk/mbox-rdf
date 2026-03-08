@@ -280,8 +280,8 @@ pub fn run(args: DiscoverArgs) -> Result<()> {
                 format!("unknown@{}", host_dir)
             });
 
-            // Account key based on LHS of email
-            let account_key = email.split('@').next().unwrap_or(&email).to_string();
+            // Account key based on full email so accounts with same LHS don't collide
+            let account_key = email.clone();
 
             println!("\n📧 {} ({})", email, host_dir);
 
