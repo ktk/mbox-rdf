@@ -62,7 +62,7 @@ pub fn run(args: ConvertArgs) -> Result<()> {
         total_accounts_processed += 1;
         println!("\n▶️ Processing account: {} ({})", acc_config.email, acc_config.graph);
 
-        let vocab = Vocab::new(DEFAULT_SCHEMA_IRI.to_string(), "https://example.org/data/".to_string()); // Config could store base data_iri
+        let vocab = Vocab::new(DEFAULT_SCHEMA_IRI.to_string(), config.settings.data_iri.clone());
 
         for folder in &acc_config.folders {
             if !folder.include {
@@ -98,15 +98,26 @@ pub fn run(args: ConvertArgs) -> Result<()> {
             
             let mut buf_writer = BufWriter::new(writer);
 
-            // We default to not extracting attachments during multi-account batch convert
-            // unless we add it to the TOML. For now, we skip attachment body extraction.
-            let att_opts: Option<AttachmentOpts> = None;
+            let att_opts = if acc_config.include_attachments {
+                if let Some(ref dir) = acc_config.attachment_dir {
+                    if !args.dry_run {
+                        fs::create_dir_all(dir)
+                            .with_context(|| format!("Failed to create attachment directory {}", dir))?;
+                    }
+                    Some(AttachmentOpts { max_size: acc_config.max_attachment_size, dir })
+                } else {
+                    println!("   ⚠️ include_attachments is true but no attachment_dir specified for {}", acc_config.email);
+                    None
+                }
+            } else {
+                None
+            };
 
             match process_mbox_file(
                 in_path,
                 &folder.name,
-                None, // limit
-                true, // include_body
+                acc_config.limit, // limit
+                acc_config.include_body, // include_body
                 att_opts.as_ref(),
                 Some(&acc_config.graph),
                 &vocab,

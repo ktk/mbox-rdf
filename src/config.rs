@@ -11,12 +11,28 @@ pub struct Settings {
     pub output_dir: String,
     pub qlever_dir: Option<String>,
     pub compress: bool,
+    #[serde(default = "default_data_iri")]
+    pub data_iri: String,
+}
+
+fn default_data_iri() -> String {
+    "urn:mbox:".to_string()
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct AccountConfig {
     pub email: String,
     pub graph: String,
+    
+    // Feature toggles
+    #[serde(default)]
+    pub include_body: bool,
+    #[serde(default)]
+    pub include_attachments: bool,
+    pub max_attachment_size: Option<usize>,
+    pub attachment_dir: Option<String>,
+    pub limit: Option<usize>,
+
     #[serde(default)]
     pub folders: Vec<FolderConfig>,
 }

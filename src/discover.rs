@@ -325,6 +325,11 @@ pub fn run(args: DiscoverArgs) -> Result<()> {
                 config_accounts.insert(account_key, AccountConfig {
                     email: email.clone(),
                     graph: format!("urn:email:{}", email),
+                    include_body: false,
+                    include_attachments: false,
+                    max_attachment_size: None,
+                    attachment_dir: Some("attachments".to_string()),
+                    limit: None,
                     folders: mapped_folders,
                 });
             }
@@ -336,6 +341,7 @@ pub fn run(args: DiscoverArgs) -> Result<()> {
             output_dir: "qlever".to_string(),
             qlever_dir: Some("qlever".to_string()),
             compress: true,
+            data_iri: "urn:mbox:".to_string(),
         },
         accounts: config_accounts,
     };
