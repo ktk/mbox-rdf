@@ -9,7 +9,6 @@ pub struct MboxConfig {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Settings {
     pub output_dir: String,
-    pub qlever_dir: Option<String>,
     pub compress: bool,
 }
 

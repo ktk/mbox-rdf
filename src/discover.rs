@@ -341,7 +341,6 @@ pub fn run(args: DiscoverArgs) -> Result<()> {
     let config = MboxConfig {
         settings: Settings {
             output_dir: "qlever".to_string(),
-            qlever_dir: Some("qlever".to_string()),
             compress: true,
         },
         accounts: config_accounts,

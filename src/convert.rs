@@ -5,7 +5,7 @@ use std::io::BufWriter;
 use anyhow::{Context, Result};
 use flate2::write::GzEncoder;
 use flate2::Compression;
-use std::process::Command;
+
 
 use crate::config::MboxConfig;
 use crate::vocab::{Vocab, DEFAULT_SCHEMA_IRI};
@@ -29,9 +29,7 @@ pub struct ConvertArgs {
     #[arg(long, default_value_t = 1)]
     pub parallel: usize,
 
-    /// Don't rebuild QLever index after conversion
-    #[arg(long, default_value_t = false)]
-    pub skip_index: bool,
+
 }
 
 pub fn run(args: ConvertArgs) -> Result<()> {
@@ -142,37 +140,6 @@ pub fn run(args: ConvertArgs) -> Result<()> {
     println!("\n✅ Conversion complete: {} accounts, {} folders generated in {}", 
         total_accounts_processed, total_folders_processed, out_dir.display());
 
-    if !args.skip_index {
-        if let Some(qlever_dir) = &config.settings.qlever_dir {
-            println!("\n🚀 Rebuilding QLever index in {}", qlever_dir);
-            let q_dir = Path::new(qlever_dir);
-            if q_dir.exists() && q_dir.join("Qleverfile").exists() {
-                // cd qlever && qlever stop && qlever index --overwrite-existing && qlever start
-                let _ = Command::new("qlever")
-                    .arg("stop")
-                    .current_dir(q_dir)
-                    .status();
-                
-                let idx_status = Command::new("qlever")
-                    .arg("index")
-                    .arg("--overwrite-existing")
-                    .current_dir(q_dir)
-                    .status()?;
-                
-                if idx_status.success() {
-                    Command::new("qlever")
-                        .arg("start")
-                        .current_dir(q_dir)
-                        .status()?;
-                    println!("QLever restarted successfully.");
-                } else {
-                    println!("QLever indexing failed.");
-                }
-            } else {
-                println!("Directory {} doesn't exist or doesn't have a Qleverfile. Skipping index build.", qlever_dir);
-            }
-        }
-    }
 
     Ok(())
 }
