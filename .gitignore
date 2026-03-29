@@ -9,6 +9,8 @@
 *.nq
 *.gz
 .DS_Store
+mbox-config.toml
+
 
 # QLever index files
 *.index.*
@@ -23,3 +25,4 @@ convert_all.sh
 IMAP_SYNC_PLAN.md
 maildir
 attachments/
+Qleverfile-ui.yml
