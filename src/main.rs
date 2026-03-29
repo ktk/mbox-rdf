@@ -519,21 +519,8 @@ fn escape_nt(s: &str) -> String {
      .replace('\t', "\\t")
 }
 
-fn sanitize_iri(s: &str) -> String {
-    let mut result = String::with_capacity(s.len());
-    for c in s.chars() {
-        match c {
-            ' ' | '<' | '>' | '"' | '{' | '}' | '|' | '^' | '\\' | '`' | '@' | '[' | ']' => {
-                result.push_str(&format!("%{:02X}", c as u32));
-            }
-            _ if c.is_control() => {
-                result.push_str(&format!("%{:02X}", c as u32));
-            }
-            _ => result.push(c),
-        }
-    }
-    result
-}
+
+
 
 fn process_addresses(
     triples: &mut Vec<String>,
