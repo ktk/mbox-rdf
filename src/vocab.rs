@@ -69,7 +69,11 @@ impl Vocab {
     }
 
     pub fn mid_iri(&self, mid: &str) -> String {
-        format!("mid:{}", encode(mid))
+        // RFC 3986 §3.3: '@' is a valid pchar in a URI path, so keep it literal.
+        // Thunderbird's mid: handler doesn't decode percent-encoding before
+        // searching for Message-ID, so %40 would break lookups.
+        let encoded = encode(mid).replace("%40", "@");
+        format!("mid:{}", encoded)
     }
 
     pub fn term(&self, local_name: &str) -> String {
