@@ -166,6 +166,12 @@ mail:AccountShape a sh:NodeShape ;
     sh:minCount 1 ; sh:maxCount 1 ;
     sh:description "Plain email address string (without mailto: prefix)" ;
   ] ;
+  sh:property [
+    sh:path mail:domain ;
+    sh:datatype xsd:string ;
+    sh:minCount 1 ; sh:maxCount 1 ;
+    sh:description "Lowercased domain part of the email address (e.g. \"sk.zh.ch\"), indexed for ql:has-word text search" ;
+  ] ;
   # Optional
   sh:property [
     sh:path schema:name ;

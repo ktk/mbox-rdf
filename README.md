@@ -102,7 +102,7 @@ Text attachments (`text/*`) are stored inline as `schema:text` literals. Binary 
 The schema namespace is `https://mail.described.at/`. Key concepts:
 
 - **`mail:Message`** (also `schema:CreativeWork`): Individual email messages.
-- **`mail:Account`**: Email accounts, identified by `mailto:` URIs (e.g., `<mailto:alice@example.com>`).
+- **`mail:Account`**: Email accounts, identified by `mailto:` URIs (e.g., `<mailto:alice@example.com>`). Always carries `schema:email` and `mail:domain` (lowercased domain part, e.g. `"sk.zh.ch"`, indexed for `ql:has-word` text search); `schema:name` is optional.
 - **`mail:Thread`**: Conversation threads, derived from the `References` header chain.
 - **`mail:MailingList`**: Mailing lists with `mail:listId`.
 - **`schema:MediaObject`**: File attachments with `schema:sha256`, `schema:encodingFormat`, `schema:name`, `schema:text`, `schema:contentUrl`.

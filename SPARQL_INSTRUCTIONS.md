@@ -61,6 +61,7 @@ An email account, **identified by its `mailto:` URI**. Example: `<mailto:alice@e
 |----------|------|-------|-------------|
 | `schema:email` | `xsd:string` | 1 | Plain email address (e.g., `alice@example.com`) |
 | `schema:name` | `xsd:string` | 0..1 | Display name |
+| `mail:domain` | `xsd:string` | 1 | Lowercased domain part of the email (e.g. `sk.zh.ch`), always present, indexed for `ql:has-word` text search |
 
 **The `mailto:` IRI is the subject; `schema:email` provides the plain address string for convenience:**
 
@@ -148,12 +149,55 @@ SELECT ?msg ?subject ?filename ?size WHERE {
 ORDER BY DESC(?size)
 ```
 
+### Find all interactions with a given domain (e.g. an organization's mail domain)
+
+If you already know the **exact** domain string, just use it as a plain triple
+pattern — this is a direct index lookup (POS/OSP), not a text search, and is
+the simplest and fastest option. Prefer this over `ql:has-word` whenever the
+exact string is known:
+
+```sparql
+SELECT ?msg ?subject ?date ?account WHERE {
+  ?account mail:domain "sk.zh.ch" .
+  ?msg (mail:from|mail:to|mail:cc|mail:bcc) ?account ;
+       mail:subject ?subject ;
+       schema:dateCreated ?date .
+}
+ORDER BY ?date
+```
+
+If you only know part of the domain (e.g. an org name fragment, unsure of the
+exact TLD/subdomain), fall back to `ql:has-word` — `mail:domain` is a plain
+string literal, so it's indexed by QLever's word index. Note the tokenizer
+splits on `.`, so `"sk.zh.ch"` is indexed as three separate tokens (`sk`,
+`zh`, `ch`); multiple `ql:has-word` clauses on the same variable are ANDed,
+so combine them to narrow down instead of a single generic token like `"ch"`
+(which alone matches every `.ch` domain and is not useful for narrowing):
+
+```sparql
+SELECT ?msg ?subject ?date ?account ?domain WHERE {
+  ?domain ql:has-word "sk" .
+  ?domain ql:has-word "zh" .
+  ?account mail:domain ?domain .
+  ?msg (mail:from|mail:to|mail:cc|mail:bcc) ?account ;
+       mail:subject ?subject ;
+       schema:dateCreated ?date .
+}
+ORDER BY ?date
+```
+
 ### Text search (QLever-specific)
 
-> **TODO**: QLever is replacing `ql:contains-word` with `ql:has-word` + materialized views
-> (see [QLever PR #2579](https://github.com/ad-freiburg/qlever/pull/2579)).
-> Once merged, create a materialized view over `mail:subject` (weight 5) and
-> `mail:bodyText` (weight 1) for ranked keyword search across messages.
+`ql:has-word` performs fast word-index text search over any literal —
+subjects, body text, domains, names. Multiple `ql:has-word` clauses on the
+same variable are ANDed:
+
+```sparql
+SELECT ?msg ?subject WHERE {
+  ?subject ql:has-word "wyler" .
+  ?msg mail:subject ?subject .
+}
+```
 
 ## Tips
 
