@@ -18,3 +18,15 @@ This list captures ideas for evolving `mbox-rdf` from a record-based converter t
 
 - **QLever Full-Text**: Optimize the emission of `mail:bodyText` to play even better with QLever's text index capabilities.
 - **Enhanced Address Parsing**: Handle grouped addresses and complex RFC 5322 edge cases in address fields more granularly.
+
+## Bugs
+
+- **Body extraction silently drops content on some messages even with `--include-body`**:
+  found via `mail-triage` — e.g. the `ktk@netlabs.org` account has `include_body = true` in
+  `mbox-config.toml`, yet real messages (verified: a "Deep Learning" / "knowledge graph"
+  mailing-list thread) end up with zero `mail:bodyText` triples. `msg.body_text(0)` in
+  `process_message` (`src/main.rs`) is presumably returning `None` for some MIME shape
+  (HTML-only body? multipart edge case?) — needs investigation into which structures
+  `mail_parser` fails to yield plain text for, and probably an HTML→text fallback. Not
+  urgent, but worth knowing: on the `ktk@netlabs.org` INBOX, roughly 22 of the first 25
+  currently-unclassified messages had no body at all.

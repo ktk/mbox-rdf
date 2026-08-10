@@ -69,11 +69,32 @@ impl Vocab {
     }
 
     pub fn mid_iri(&self, mid: &str) -> String {
-        // RFC 3986 §3.3: '@' is a valid pchar in a URI path, so keep it literal.
-        // Thunderbird's mid: handler doesn't decode percent-encoding before
-        // searching for Message-ID, so %40 would break lookups.
-        let encoded = encode(mid).replace("%40", "@");
-        format!("mid:{}", encoded)
+        // Thunderbird's mid: handler matches the raw Message-ID string and
+        // does NOT decode percent-encoding first, so any character we encode
+        // that a real Message-ID legally contains unescaped (e.g. '+', '='
+        // in Gmail-style ids like "CAP...+g7C=...@mail.gmail.com") breaks
+        // the lookup — found via a real Thunebird "not found" repro, not
+        // just the '@' case this used to special-case alone.
+        //
+        // Keep every RFC 3986 §3.3 pchar literal (unreserved / sub-delims /
+        // ":" / "@" — a superset of what a bare `encode()` would leave
+        // alone) and only percent-encode what's genuinely unsafe to embed
+        // (whitespace, control characters, '<' '>' '"' '%', and non-ASCII).
+        let mut out = String::with_capacity(mid.len());
+        for byte in mid.bytes() {
+            let is_safe = byte.is_ascii_alphanumeric()
+                || matches!(
+                    byte,
+                    b'-' | b'.' | b'_' | b'~' | b'!' | b'$' | b'&' | b'\'' | b'(' | b')' | b'*'
+                        | b'+' | b',' | b';' | b'=' | b':' | b'@'
+                );
+            if is_safe {
+                out.push(byte as char);
+            } else {
+                out.push_str(&format!("%{:02X}", byte));
+            }
+        }
+        format!("mid:{}", out)
     }
 
     pub fn term(&self, local_name: &str) -> String {
